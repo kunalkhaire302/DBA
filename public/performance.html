@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NexBank — Explain Plan & Performance</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --gold: #C9A84C; --gold-light: #E8C97A;
+    --navy: #0B0F1A; --navy-2: #111827; --navy-3: #1C2433;
+    --text: #E8E4D9; --muted: rgba(232,228,217,0.45);
+    --border: rgba(201,168,76,0.2);
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--navy); color: var(--text); display: flex; }
+  .sidebar { width: 260px; min-height: 100vh; background: var(--navy-3); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 36px 24px; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; gap: 40px; }
+  .logo-mark { display: flex; align-items: center; gap: 12px; margin-right: 0px; }
+  .logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, var(--gold), var(--gold-light)); clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); display: flex; align-items: center; justify-content: center; font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 600; color: var(--navy); }
+  .logo-name { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 300; }
+  .nav-section { display: flex; flex-direction: column; gap: 4px; align-items: stretch; flex: unset; margin: 0; }
+  .nav-item { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 4px; font-size: 13.5px; color: var(--muted); cursor: pointer; text-decoration: none; }
+  .nav-item.active, .nav-item:hover { background: rgba(201,168,76,0.08); color: var(--gold-light); }
+  
+  .main { margin-left: 260px; margin-right: auto; margin-top: 0; flex: 1; padding: 50px 60px; max-width: 1100px; }
+  
+  .page-header { display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 30px;}
+  h1 { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 300; color: var(--gold-light); }
+  .badge { background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.3); padding: 5px 12px; border-radius: 20px; font-size: 11px; color: var(--gold); text-transform:uppercase; letter-spacing:0.1em;}
+
+  .card { background: var(--navy-2); border: 1px solid var(--border); border-radius: 6px; padding: 25px; margin-bottom: 30px; position:relative;}
+  .card-title { font-family: 'Cormorant Garamond', serif; font-size: 20px; color: #fff; margin-bottom: 20px; }
+
+  textarea { width: 100%; height: 100px; background: rgba(0,0,0,0.5); border: 1px solid rgba(201,168,76,0.3); border-radius: 4px; color: #E8C97A; font-family: monospace; padding: 15px; margin-bottom: 15px;}
+  
+  button { background: var(--gold); color: #000; border: none; padding: 10px 20px; border-radius: 4px; font-weight: 600; cursor: pointer; transition: 0.2s;}
+  button:hover { opacity: 0.9; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-family: monospace;}
+  th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  th { background: rgba(255,255,255,0.03); color: var(--gold-light); text-transform: uppercase; font-family: 'DM Sans', sans-serif;}
+
+  .high-cost { background: rgba(224,85,85,0.2) !important; color:#E05555;}
+  .slow-row { background: rgba(224,85,85,0.1); border-left: 3px solid #E05555;}
+
+  /* Demo Box */
+  .demo-box { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-top:20px;}
+  .demo-side { flex:1; padding: 20px; text-align: center;}
+  .demo-left { background: rgba(224,85,85,0.05); border-right: 1px solid var(--border);}
+  .demo-right { background: rgba(76,175,144,0.05); }
+  .demo-metric { font-size: 32px; font-weight: bold; margin: 10px 0; font-family:'Cormorant Garamond', serif;}
+
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo-mark"><div class="logo-icon">N</div><span class="logo-name">NexBank</span></div>
+  <nav class="nav-section">
+    <a href="admin.html" class="nav-item">📊 Dashboard</a>
+    <a href="views.html" class="nav-item">👁️ Oracle Views</a>
+    <a href="dashboard.html" class="nav-item">⚙️ Materialized Views</a>
+    <a href="performance.html" class="nav-item active">🚀 Explain Plan</a>
+    <a href="automation.html" class="nav-item">⏱️ Scheduler Jobs</a>
+    <a href="index.html" class="nav-item" >↩ Login</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="page-header">
+    <h1>Oracle Explain Plan Viewer</h1>
+    <span class="badge">DBA Concept: Performance Tuning</span>
+  </div>
+
+  <!-- SECTION 1 -->
+  <div class="card">
+    <div class="card-title">Query Execution Plan (DBMS_XPLAN.DISPLAY)</div>
+    <textarea id="sqlInput" placeholder="SELECT * FROM transactions WHERE account_id = 1001;"></textarea>
+    <button onclick="getExplainPlan()">Get Explain Plan</button>
+    <div >💡 Note: Lower cost = better performance</div>
+    
+    <div id="planResult" >
+      <table>
+        <thead><tr><th>Id</th><th>Operation</th><th>Name</th><th>Rows</th><th>Bytes</th><th>Cost (%CPU)</th><th>Time</th></tr></thead>
+        <tbody id="planBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SECTION 2 -->
+  <div class="card">
+    <div class="card-title">Before vs After Index Demo</div>
+    <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 4px; font-family: monospace; color:#a9b5c7; text-align:center;">
+        CREATE INDEX idx_account_id ON transactions (account_id);
+    </div>
+    
+    <div class="demo-box">
+        <div class="demo-side demo-left">
+            <h3 style="color:#E05555;">Without Index</h3>
+            <div class="demo-metric" style="color:#E05555;">1240 ms</div>
+            <p style="color:var(--muted); font-size:13px;">Full Table Scan (Cost: 450)</p>
+        </div>
+        <div class="demo-side demo-right">
+            <h3 style="color:#4CAF90;">With Index on account_id</h3>
+            <div class="demo-metric" style="color:#4CAF90;">12 ms</div>
+            <p style="color:var(--muted); font-size:13px;">Index Range Scan (Cost: 3)</p>
+        </div>
+    </div>
+    <div style="text-align:center; padding-top:20px; font-size:20px; color:#4CAF90; font-family:'Cormorant Garamond', serif;">
+        ⚡ 98% faster with index implementation!
+    </div>
+  </div>
+
+  <!-- SECTION 3 -->
+  <div class="card">
+    <div class="card-title">Slow Query Monitor (V$SQL)</div>
+    <table>
+      <thead><tr>
+        <th>Query Preview</th>
+        <th>Elapsed (s)</th>
+        <th>Buffer Gets</th>
+        <th>Disk Reads</th>
+        <th>Avg ms/exec</th>
+        <th>Last Active</th>
+      </tr></thead>
+      <tbody id="vsqlBody">
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+<script>
+  function getExplainPlan() {
+    const qStr = document.getElementById('sqlInput').value || 'SELECT * FROM SYS_DUMMY';
+    fetch('/explain-plan', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({query: qStr})
+    })
+    .then(r=>r.json()).then(data => {
+        document.getElementById('planResult').style.display = 'block';
+        document.getElementById('planBody').innerHTML = data.map(row => 
+            `<tr class="${row.cost > 100 ? 'high-cost' : ''}">
+                <td>${row.id}</td>
+                <td>${row.operation}</td>
+                <td>${row.name}</td>
+                <td>${row.rows}</td>
+                <td>${row.bytes}</td>
+                <td>${row.cost}</td>
+                <td>${row.time}</td>
+            </tr>`
+        ).join('');
+    });
+  }
+
+  function fetchSlowQueries() {
+      fetch('/vsql-slow') // New mapped endpoint to avoid interfering with original slow-queries table
+      .then(r=>r.json()).then(data => {
+          document.getElementById('vsqlBody').innerHTML = data.map(row => 
+              `<tr class="${row.elapsed_seconds > 2 ? 'slow-row' : ''}">
+                  <td style="color:#E8C97A;">${row.query_preview}</td>
+                  <td><b>${row.elapsed_seconds}</b></td>
+                  <td>${row.buffer_gets}</td>
+                  <td>${row.disk_reads}</td>
+                  <td>${row.avg_ms_per_exec} ms</td>
+                  <td style="color:var(--muted)">${row.last_active_time}</td>
+              </tr>`
+          ).join('');
+      });
+  }
+
+  fetchSlowQueries();
+  setInterval(fetchSlowQueries, 30000);
+</script>
+</body>
+</html>

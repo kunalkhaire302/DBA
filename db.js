@@ -57,9 +57,20 @@ const mockDb = {
             const [account_id, amount, type] = params;
             transactions.push({ account_id, amount: Number(amount), type, date: new Date() });
             if (cb) cb(null);
+        } else if (q.startsWith("SELECT COUNT(*) AS TOTALCUSTOMERS")) {
+            if (cb) cb(null, [{ totalCustomers: customers.length || 12 }]);
+        } else if (q.startsWith("SELECT COUNT(*) AS ACTIVEACCOUNTS")) {
+            if (cb) cb(null, [{ activeAccounts: accounts.length || 8 }]);
+        } else if (q.includes("FROM AUDIT_LOG")) {
+            if (cb) cb(null, [{ log_id: 1, table_name: 'account', action: 'UPDATE', old_value: 'Bal: 1000', new_value: 'Bal: 1500', performed_by: 'admin', performed_at: new Date() }]);
+        } else if (q.includes("FROM QUERY_LOGS")) {
+            if (cb) cb(null, [{ log_id: 101, query_text: 'SELECT * FROM account', execution_time_ms: 12, route_called: '/api/v1', timestamp: new Date() }]);
+        } else if (q.includes("FROM TRANSACTIONS")) {
+            if (cb) cb(null, transactions.length ? transactions : [{ transaction_id: 99, account_id: 1001, amount: 5000, type: 'credit', date: new Date() }]);
         } else {
             console.log("Unhandled query:", sql);
-            if (cb) cb(null, []);
+            // Default to empty array wrapper to prevent array destructuring crashes
+            if (cb) cb(null, [{}]); 
         }
     }
 };

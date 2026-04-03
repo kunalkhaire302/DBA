@@ -1,0 +1,359 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexBank — Audit Log</title>
+  <script>
+    if (localStorage.getItem('userRole') !== 'admin') {
+      window.location.href = 'index.html';
+    }
+  </script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --gold: #C9A84C;
+      --gold-light: #E8C97A;
+      --navy: #0B0F1A;
+      --navy-2: #111827;
+      --navy-3: #1C2433;
+      --border: rgba(201, 168, 76, 0.2);
+      --text: #E8E4D9;
+      --muted: rgba(232, 228, 217, 0.45);
+      --success: #4CAF90;
+      --danger: #E05555;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--navy);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(201, 168, 76, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(201, 168, 76, 0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Sidebar */
+    .sidebar { width: 260px; min-height: 100vh; background: var(--navy-3); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 36px 24px; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; gap: 40px;}
+
+    .logo-mark { display: flex; align-items: center; gap: 12px; margin-right: 0px; }
+
+    .logo-icon {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, var(--gold), var(--gold-light));
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--navy);
+    }
+
+    .logo-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 24px;
+      font-weight: 300;
+      letter-spacing: 0.08em;
+    }
+
+    .nav-section { display: flex; flex-direction: column; gap: 4px; align-items: stretch; flex: unset; margin: 0; }
+
+    .nav-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 10px 0 5px 10px; }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 14px;
+      border-radius: 4px;
+      font-size: 13.5px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+      text-decoration: none;
+    }
+
+    .nav-item.active,
+    .nav-item:hover {
+      background: rgba(201, 168, 76, 0.08);
+      border-color: rgba(201, 168, 76, 0.15);
+      color: var(--gold-light);
+    }
+
+    .nav-icon {
+      font-size: 16px;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      font-size: 12px;
+      color: rgba(232, 228, 217, 0.2);
+      padding: 0 12px;
+      line-height: 1.6;
+    }
+
+    .role-badge {
+      display: inline-block;
+      background: rgba(201, 168, 76, 0.12);
+      border: 1px solid rgba(201, 168, 76, 0.2);
+      color: var(--gold);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-bottom: 8px;
+    }
+
+    /* Main content */
+    .main {
+      margin-left: 260px; margin-right: auto; margin-top: 0;
+      flex: 1;
+      padding: 50px 60px;
+      position: relative;
+      z-index: 1;
+      max-width: 1400px;
+      animation: fadeIn 0.5s ease both;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 48px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .page-title h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 36px;
+      font-weight: 300;
+      letter-spacing: 0.02em;
+    }
+
+    .page-title p {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* Table styling */
+    .table-container {
+      background: var(--navy-3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      position: relative;
+      overflow-x: auto;
+    }
+
+    .table-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--gold), transparent);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      padding: 16px 20px;
+      text-align: left;
+      border-bottom: 1px solid rgba(201, 168, 76, 0.1);
+    }
+
+    th {
+      color: var(--gold-light);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 500;
+      background: rgba(201, 168, 76, 0.02);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: rgba(201, 168, 76, 0.02);
+    }
+
+    .badge-insert {
+      background: rgba(76, 175, 144, 0.1);
+      color: var(--success);
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-update {
+      background: rgba(52, 152, 219, 0.1);
+      color: #3498db;
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-delete {
+      background: rgba(224, 85, 85, 0.1);
+      color: var(--danger);
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo-mark">
+      <div class="logo-icon">N</div>
+      <span class="logo-name">NexBank</span>
+    </div>
+
+    <nav class="nav-section">
+    <div class="nav-label">Admin Portal</div>
+    <a href="admin.html" class="nav-item"><span class="nav-icon">👤</span> Dashboard / Admin</a>
+    <a href="audit.html" class="nav-item active"><span class="nav-icon">📜</span> Audit Log</a>
+    <a href="query-analyzer.html" class="nav-item"><span class="nav-icon">⚡</span> Query Analyzer</a>
+    
+    <div class="nav-label" >Documentation</div>
+    <a href="queries.html" class="nav-item"><span class="nav-icon">🔍</span> SQL Queries</a>
+    <a href="er-diagram.html" class="nav-item"><span class="nav-icon">📈</span> ER Diagram</a>
+    <a href="cloud.html" class="nav-item"><span class="nav-icon">☁️</span> Cloud Architecture</a>
+    <a href="about.html" class="nav-item"><span class="nav-icon">📄</span> About / Conclusion</a>
+
+    <a href="#" onclick="localStorage.removeItem('userRole'); window.location.href='index.html';" class="nav-item" >
+      <span class="nav-icon">↩</span> Sign Out
+    </a>
+  </nav>
+
+    <div class="sidebar-footer">
+      <div class="role-badge">Administrator</div>
+      <div>Full system access</div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main">
+    <div class="page-header">
+      <div class="page-title">
+        <h1>Audit Log</h1>
+        <p>System-wide data modification history generated by SQL Triggers</p>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Log ID</th>
+            <th>Table</th>
+            <th>Action</th>
+            <th>Old Value</th>
+            <th>New Value</th>
+            <th>Triggered By</th>
+            <th>Timestamp</th>
+          </tr>
+        </thead>
+        <tbody id="audit-body">
+          <tr>
+            <td colspan="7" style="text-align: center; color: var(--muted);">Loading logs...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+    function loadLogs() {
+      fetch('/audit-log')
+        .then(res => res.json())
+        .then(data => {
+          const tbody = document.getElementById('audit-body');
+          tbody.innerHTML = '';
+          if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--muted);">No audit logs found. Play around with accounts to generate triggers!</td></tr>';
+            return;
+          }
+          data.forEach(log => {
+            let badgeClass = '';
+            if (log.action === 'INSERT') badgeClass = 'badge-insert';
+            else if (log.action === 'UPDATE') badgeClass = 'badge-update';
+            else if (log.action === 'DELETE') badgeClass = 'badge-delete';
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                    <td>#${log.log_id}</td>
+                    <td style="color:var(--text);">${log.table_name}</td>
+                    <td><span class="${badgeClass}">${log.action}</span></td>
+                    <td style="color:var(--muted); font-size:12px;">${log.old_value || '—'}</td>
+                    <td style="color:var(--text); font-size:12px;">${log.new_value || '—'}</td>
+                    <td style="color:var(--gold-light);">${log.performed_by}</td>
+                    <td style="color:var(--muted);">${new Date(log.performed_at).toLocaleString()}</td>
+                `;
+            tbody.appendChild(tr);
+          });
+        });
+    }
+    loadLogs();
+  </script>
+</body>
+
+</html>

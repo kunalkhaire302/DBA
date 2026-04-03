@@ -30,6 +30,23 @@
     overflow: hidden;
   }
 
+  /* Checklist Widget Styles */
+  .checklist-widget {
+    background: rgba(28,36,51,0.6);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 6px;
+    padding: 20px;
+    margin-top: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+  .check-title { color: var(--gold-light); font-size: 14px; font-family: 'Cormorant Garamond', serif; border-bottom: 1px solid rgba(201,168,76,0.2); padding-bottom:10px; margin-bottom:15px; display:flex; justify-content:space-between;}
+  .prog-bar-wrap { width: 100%; background: rgba(0,0,0,0.4); height: 6px; border-radius: 3px; margin-bottom: 15px;}
+  .prog-bar-fill { background: #4CAF90; height: 100%; border-radius: 3px; width: 100%; }
+  .check-list { list-style: none; display:grid; grid-template-columns: 1fr 1fr; gap:10px;}
+  .check-list li a { font-size: 11px; text-decoration:none; color: var(--muted); display:flex; align-items:center; gap:6px; transition: color 0.2s;}
+  .check-list li a:hover { color: #fff; }
+
   /* Animated background */
   body::before {
     content: '';
@@ -273,6 +290,26 @@
         <div class="dot"></div>
       </div>
     </div>
+
+    <!-- Submission Checklist Widget -->
+    <div class="checklist-widget">
+        <div class="check-title">
+            <span>Project Submission Status</span>
+            <span style="color:#4CAF90; font-family:'DM Sans'; font-size:11px; font-weight:bold;">100% Ready 🎓</span>
+        </div>
+        <div style="font-size:10px; color:var(--muted); margin-bottom:4px;">8/8 Requirements Complete</div>
+        <div class="prog-bar-wrap"><div class="prog-bar-fill"></div></div>
+        <ul class="check-list">
+            <li><a href="about.html">✅ Problem Statement</a></li>
+            <li><a href="er-diagram.html">✅ ER Diagram</a></li>
+            <li><a href="queries.html">✅ Table Creation SQL</a></li>
+            <li><a href="queries.html">✅ Sample Data</a></li>
+            <li><a href="queries.html">✅ SQL Queries (15)</a></li>
+            <li><a href="about.html">✅ DBA Features</a></li>
+            <li><a href="cloud.html">✅ Outputs / Cloud</a></li>
+            <li><a href="about.html">✅ Conclusion</a></li>
+        </ul>
+    </div>
   </div>
 
   <!-- Right Login Panel -->
@@ -308,6 +345,7 @@ window.addEventListener('DOMContentLoaded', () => {
   else if (role === 'teller') location = 'teller.html';
   else if (role === 'customer') location = 'customer.html';
 });
+
 
 function login() {
   const btn = document.querySelector('.btn');

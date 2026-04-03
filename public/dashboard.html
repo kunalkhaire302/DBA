@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NexBank — Executive Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --gold: #C9A84C; --gold-light: #E8C97A;
+    --navy: #0B0F1A; --navy-2: #111827; --navy-3: #1C2433;
+    --text: #E8E4D9; --muted: rgba(232,228,217,0.45);
+    --border: rgba(201,168,76,0.2);
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--navy); color: var(--text); display: flex; }
+  .sidebar { width: 260px; min-height: 100vh; background: var(--navy-3); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 36px 24px; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; gap: 40px; }
+  .logo-mark { display: flex; align-items: center; gap: 12px; margin-right: 0px; }
+  .logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, var(--gold), var(--gold-light)); clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); display: flex; align-items: center; justify-content: center; font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 600; color: var(--navy); }
+  .logo-name { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 300; }
+  .nav-section { display: flex; flex-direction: column; gap: 4px; align-items: stretch; flex: unset; margin: 0; }
+  .nav-item { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 4px; font-size: 13.5px; color: var(--muted); cursor: pointer; text-decoration: none; }
+  .nav-item.active, .nav-item:hover { background: rgba(201,168,76,0.08); color: var(--gold-light); }
+  
+  .main { margin-left: 260px; margin-right: auto; margin-top: 0; flex: 1; padding: 50px 60px; max-width: 1100px; }
+  
+  .page-header { display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 30px;}
+  h1 { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 300; color: var(--gold-light); }
+
+  .card { background: var(--navy-2); border: 1px solid var(--border); border-radius: 6px; padding: 25px; margin-bottom: 30px;}
+  .card-title { font-family: 'Cormorant Garamond', serif; font-size: 20px; color: #fff; margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center;}
+
+  .health-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom:20px;}
+  .health-box { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); padding: 20px; border-radius: 6px; text-align:center;}
+  .health-val { font-size: 24px; color: var(--gold); font-family: 'Cormorant Garamond', serif; margin:10px 0;}
+  .health-label { font-size: 11px; text-transform:uppercase; color: var(--muted); letter-spacing:0.1em;}
+
+  .warn-box { background: rgba(230, 162, 60, 0.1); border-left: 4px solid #E6A23C; padding: 15px; border-radius: 4px; color: #E8C97A; font-size: 13px;}
+  .healthy-box { background: rgba(76, 175, 144, 0.1); border-left: 4px solid #4CAF90; padding: 15px; border-radius: 4px; color: #4CAF90; font-size: 13px;}
+
+  /* Size Bar */
+  .bar-chart { margin-top:20px;}
+  .bar-row { display:flex; align-items:center; margin-bottom:8px;}
+  .bar-label { width: 120px; font-size: 12px; color: var(--muted); font-family:monospace;}
+  .bar-track { flex:1; background: rgba(0,0,0,0.5); height: 12px; border-radius: 6px; overflow:hidden;}
+  .bar-fill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold-light)); border-radius:6px;}
+
+  .btn { background: var(--gold); color: #000; border: none; padding: 8px 16px; border-radius: 4px; font-weight: 600; cursor: pointer;}
+  
+  table { width: 100%; border-collapse: collapse; font-size: 13px;}
+  th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  th { color: var(--gold-light); background: rgba(0,0,0,0.3);}
+
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo-mark"><div class="logo-icon">N</div><span class="logo-name">NexBank</span></div>
+  <nav class="nav-section">
+    <a href="admin.html" class="nav-item">📊 Administrator Base</a>
+    <a href="views.html" class="nav-item">👁️ Oracle Views</a>
+    <a href="dashboard.html" class="nav-item active">⚙️ Materialized Views</a>
+    <a href="performance.html" class="nav-item">🚀 Explain Plan</a>
+    <a href="automation.html" class="nav-item">⏱️ Scheduler Jobs</a>
+    <a href="index.html" class="nav-item" >↩ Login</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="page-header">
+    <h1>Database Health & Materialized Views</h1>
+  </div>
+
+  <!-- DB HEALTH CARD -->
+  <div class="card">
+    <div class="card-title">
+        <span>Oracle DB Health Monitor</span>
+        <button class="btn" onclick="fetchHealth()">Run Health Check</button>
+    </div>
+    
+    <div class="health-grid" id="healthGrid">
+        <div class="health-box"><div class="health-label">📦 DB Size</div><div class="health-val" id="h-size">--</div></div>
+        <div class="health-box"><div class="health-label">📋 Total Tables</div><div class="health-val" id="h-tables">--</div></div>
+        <div class="health-box"><div class="health-label">👥 Active Sessions</div><div class="health-val" id="h-sessions">--</div></div>
+        <div class="health-box"><div class="health-label">⏱ Uptime</div><div class="health-val" id="h-uptime">--</div></div>
+    </div>
+
+    <div id="healthStatus" class="healthy-box" style="margin-bottom:20px;">
+        🟢 Database is Healthy
+    </div>
+
+    <h4 style="color:var(--text); font-weight:400; margin-bottom:10px;">Table Segment Sizes:</h4>
+    <div class="bar-chart" id="barChartContainer"></div>
+  </div>
+
+  <!-- MATERIALIZED VIEW CARD -->
+  <div class="card">
+    <div class="card-title">
+        <span>Materialized View: Daily Transaction Summary</span>
+        <button class="btn" style="background:rgba(201,168,76,0.2); color:var(--gold); border:1px solid var(--gold);" onclick="refreshMV()" id="btn-refresh">🔄 Refresh Now</button>
+    </div>
+    <div style="font-size:12px; color:var(--muted); margin-bottom:15px;">
+        💡 Materialized Views store pre-computed results physically on disk for faster query performance instead of running at execution time.
+    </div>
+    
+    <div style="display:flex; gap:20px; font-size:12px; margin-bottom:15px; color:var(--gold-light);">
+        <span><b>Last Refreshed:</b> <span id="mv-last">Loading...</span></span>
+        <span><b>Status:</b> <span id="mv-staleness">Loading...</span></span>
+    </div>
+
+    <table>
+      <thead><tr>
+        <th>Date</th>
+        <th>Total TXNs</th>
+        <th>Total Volume</th>
+        <th>Average TXN</th>
+        <th>Max TXN Size</th>
+      </tr></thead>
+      <tbody id="mvBody"></tbody>
+    </table>
+  </div>
+
+</main>
+
+<script>
+  function fetchHealth() {
+      fetch('/db-health').then(r=>r.json()).then(data => {
+          document.getElementById('h-size').innerText = data.db_size_mb + " MB";
+          document.getElementById('h-tables').innerText = data.total_tables;
+          document.getElementById('h-sessions').innerText = data.active_sessions;
+          document.getElementById('h-uptime').innerText = data.uptime;
+
+          if(data.warnings.length > 0) {
+              document.getElementById('healthStatus').className = 'warn-box';
+              document.getElementById('healthStatus').innerHTML = `⚠️ WARNING: Table <b>${data.warnings[0]}</b> has no index - performance may be slow`;
+          } else {
+              document.getElementById('healthStatus').className = 'healthy-box';
+              document.getElementById('healthStatus').innerText = "🟢 Database is Healthy. All schemas indexed.";
+          }
+
+          // Build bars
+          const maxKb = Math.max(...data.table_sizes.map(t=>t.kb));
+          document.getElementById('barChartContainer').innerHTML = data.table_sizes.map(t => {
+              const width = (t.kb / maxKb) * 100;
+              return `<div class="bar-row">
+                <div class="bar-label">${t.segment_name}</div>
+                <div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div>
+                <div style="font-size:10px; color:var(--muted); width:40px; text-align:right;">${t.kb}kb</div>
+              </div>`
+          }).join('');
+      });
+  }
+
+  function fetchMV() {
+      fetch('/mv-status').then(r=>r.json()).then(status => {
+          document.getElementById('mv-last').innerText = new Date(status.last_refresh_date).toLocaleString();
+          document.getElementById('mv-staleness').innerHTML = status.staleness === 'FRESH' ? '✅ FRESH' : '⚠️ STALE';
+      });
+
+      fetch('/mv-data').then(r=>r.json()).then(data => {
+          document.getElementById('mvBody').innerHTML = data.map(d => `
+            <tr>
+              <td>${d.txn_date}</td>
+              <td>${d.total_transactions}</td>
+              <td>₹${d.total_amount}</td>
+              <td>₹${d.avg_amount}</td>
+              <td>₹${d.max_transaction}</td>
+            </tr>
+          `).join('');
+      });
+  }
+
+  function refreshMV() {
+      const btn = document.getElementById('btn-refresh');
+      btn.innerText = '⏳ Refreshing...';
+      fetch('/refresh-mv', {method:'POST'}).then(r=>r.json()).then(res => {
+          btn.innerText = '🔄 Refresh Now';
+          fetchMV();
+      });
+  }
+
+  fetchHealth();
+  fetchMV();
+  setInterval(fetchHealth, 60000);
+</script>
+</body>
+</html>

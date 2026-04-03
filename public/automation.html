@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NexBank — Oracle Scheduler Jobs</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --gold: #C9A84C; --gold-light: #E8C97A;
+    --navy: #0B0F1A; --navy-2: #111827; --navy-3: #1C2433;
+    --text: #E8E4D9; --muted: rgba(232,228,217,0.45);
+    --border: rgba(201,168,76,0.2);
+    --success: #4CAF90; --danger: #E05555;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--navy); color: var(--text); display: flex; }
+  .sidebar { width: 260px; min-height: 100vh; background: var(--navy-3); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 36px 24px; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; gap: 40px; }
+  .logo-mark { display: flex; align-items: center; gap: 12px; margin-right: 0px; }
+  .logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, var(--gold), var(--gold-light)); clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); display: flex; align-items: center; justify-content: center; font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 600; color: var(--navy); }
+  .logo-name { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 300; }
+  .nav-section { display: flex; flex-direction: column; gap: 4px; align-items: stretch; flex: unset; margin: 0; }
+  .nav-item { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 4px; font-size: 13.5px; color: var(--muted); cursor: pointer; text-decoration: none; }
+  .nav-item.active, .nav-item:hover { background: rgba(201,168,76,0.08); color: var(--gold-light); }
+  
+  .main { margin-left: 260px; margin-right: auto; margin-top: 0; flex: 1; padding: 50px 60px; max-width: 1100px; }
+  
+  .page-header { display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 30px;}
+  h1 { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 300; color: var(--gold-light); }
+  .badge { background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.3); padding: 5px 12px; border-radius: 20px; font-size: 11px; color: var(--gold); text-transform:uppercase; letter-spacing:0.1em;}
+
+  .card { background: var(--navy-2); border: 1px solid var(--border); border-radius: 6px; padding: 25px; margin-bottom: 30px; position:relative;}
+  .card-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; color: #fff; margin-bottom: 20px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 14px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  th { background: rgba(255,255,255,0.03); color: var(--gold-light); text-transform: uppercase; font-size: 11px; letter-spacing:0.05em;}
+  
+  .status-enabled { background: rgba(76,175,144,0.1); color: var(--success); padding: 4px 8px; border-radius: 4px; font-size: 10px; border: 1px solid var(--success);}
+  .status-disabled { background: rgba(255,255,255,0.05); color: var(--muted); padding: 4px 8px; border-radius: 4px; font-size: 10px; border: 1px solid var(--muted);}
+
+  button { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px; transition: 0.2s;}
+  button:hover { background: var(--gold); color: var(--navy); }
+  .btn-run { background: rgba(201,168,76,0.1); border-color: rgba(201,168,76,0.5);}
+
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo-mark"><div class="logo-icon">N</div><span class="logo-name">NexBank</span></div>
+  <nav class="nav-section">
+    <a href="admin.html" class="nav-item">📊 Dashboard</a>
+    <a href="views.html" class="nav-item">👁️ Oracle Views</a>
+    <a href="dashboard.html" class="nav-item">⚙️ Materialized Views</a>
+    <a href="performance.html" class="nav-item">🚀 Explain Plan</a>
+    <a href="automation.html" class="nav-item active">⏱️ Scheduler Jobs</a>
+    <a href="index.html" class="nav-item" >↩ Login</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="page-header">
+    <h1>DB Automation - Scheduled Jobs Monitor</h1>
+    <span class="badge">Latest Trend: Automation in DB Management</span>
+  </div>
+
+  <div class="card">
+    <div class="card-title">DBMS_SCHEDULER Active Jobs</div>
+    <table>
+      <thead><tr>
+        <th>Job Name</th>
+        <th>Description</th>
+        <th>Schedule Interval</th>
+        <th>Status</th>
+        <th>Last Run</th>
+        <th>Next Run</th>
+        <th>Actions</th>
+      </tr></thead>
+      <tbody id="jobs-body">
+        <tr><td colspan="7">Loading ALL_SCHEDULER_JOBS...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Job Execution History (ALL_SCHEDULER_JOB_RUN_DETAILS)</div>
+    <table>
+      <thead><tr>
+        <th>Log ID</th>
+        <th>Job Name</th>
+        <th>Status</th>
+        <th>Actual Start Date</th>
+        <th>Run Duration</th>
+      </tr></thead>
+      <tbody id="history-body">
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+<script>
+  function fetchJobs() {
+    fetch('/scheduler-jobs').then(r=>r.json()).then(data => {
+      document.getElementById('jobs-body').innerHTML = data.map(job => `
+        <tr>
+          <td style="font-family:monospace; color:#E8C97A;">${job.job_name}</td>
+          <td style="color:var(--muted);">${job.comments}</td>
+          <td><code>${job.repeat_interval}</code></td>
+          <td><span class="${job.enabled ? 'status-enabled' : 'status-disabled'}">${job.enabled ? 'ENABLED' : 'DISABLED'}</span></td>
+          <td>${job.last_start_date}</td>
+          <td>${job.next_run_date}</td>
+          <td style="display:flex; gap:8px;">
+            <button onclick="toggleJob('${job.job_name}')">${job.enabled ? 'Disable' : 'Enable'}</button>
+            <button class="btn-run" onclick="runJob('${job.job_name}')">▶ Run Now</button>
+          </td>
+        </tr>
+      `).join('');
+    });
+
+    fetch('/job-history').then(r=>r.json()).then(data => {
+      document.getElementById('history-body').innerHTML = data.map(log => `
+        <tr>
+          <td>#${log.log_id}</td>
+          <td style="font-family:monospace;">${log.job_name}</td>
+          <td style="color:${log.status==='SUCCEEDED'?'var(--success)':'var(--danger)'}"><b>${log.status}</b></td>
+          <td>${log.actual_start_date}</td>
+          <td>${log.run_duration}</td>
+        </tr>
+      `).join('');
+    });
+  }
+
+  function toggleJob(name) {
+    fetch('/toggle-job', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({job_name:name})})
+      .then(()=>fetchJobs());
+  }
+
+  function runJob(name) {
+    fetch('/run-job-now', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({job_name:name})})
+      .then(()=>{ alert(`DBMS_SCHEDULER.RUN_JOB executed for ${name}`); fetchJobs(); });
+  }
+
+  // Auto-refresh every 60s
+  fetchJobs();
+  setInterval(fetchJobs, 60000);
+</script>
+</body>
+</html>

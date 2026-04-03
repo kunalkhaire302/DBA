@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NexBank — Security & Encryption</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --gold: #C9A84C; --gold-light: #E8C97A;
+    --navy: #0B0F1A; --navy-2: #111827; --navy-3: #1C2433;
+    --text: #E8E4D9; --muted: rgba(232,228,217,0.45);
+    --border: rgba(201,168,76,0.2);
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--navy); color: var(--text); display: flex; }
+  
+  /* SIDEBAR */
+  .sidebar { width: 260px; min-height: 100vh; background: var(--navy-3); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 36px 24px; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; gap: 40px; }
+  .logo-mark { display: flex; align-items: center; gap: 12px; margin-right: 0px; }
+  .logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, var(--gold), var(--gold-light)); clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); display: flex; align-items: center; justify-content: center; font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 600; color: var(--navy); }
+  .logo-name { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 300; }
+  .nav-section { display: flex; flex-direction: column; gap: 4px; align-items: stretch; flex: unset; margin: 0; }
+  .nav-item { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 4px; font-size: 13.5px; color: var(--muted); cursor: pointer; text-decoration: none; }
+  .nav-item.active, .nav-item:hover { background: rgba(201,168,76,0.08); color: var(--gold-light); }
+  .nav-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 10px 0 5px 10px; }
+
+  /* MAIN CONTENT */
+  .main { margin-left: 260px; margin-right: auto; margin-top: 0; flex: 1; padding: 50px 60px; max-width: 1000px; }
+  
+  .page-header { display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 30px;}
+  h1 { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 300; color: var(--gold-light); }
+  .badge { background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.3); padding: 5px 12px; border-radius: 20px; font-size: 11px; color: var(--gold); text-transform:uppercase; letter-spacing:0.1em;}
+
+  .card { background: var(--navy-2); border: 1px solid var(--border); border-radius: 6px; padding: 25px; margin-bottom: 30px;}
+  .card-title { font-family: 'Cormorant Garamond', serif; font-size: 20px; color: #fff; margin-bottom: 20px;}
+  
+  .btn { background: var(--gold); color: #000; border: none; padding: 10px 20px; border-radius: 4px; font-weight: 600; cursor: pointer; font-size:14px; display:inline-flex; align-items:center; gap:8px;}
+  .btn-outline { background: transparent; border: 1px solid var(--gold); color: var(--gold);}
+
+  input[type="text"] { width: 100%; max-width: 400px; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: #fff; border-radius: 4px; margin-bottom: 20px; font-family:monospace; font-size:16px;}
+
+  .result-box { display: none; padding: 20px; border-radius: 6px; margin-top: 20px; font-family: monospace; font-size: 16px; word-break: break-all; transition: 0.3s; }
+  .enc-box { background: rgba(224,85,85,0.1); border-left: 4px solid #E05555; color: #E05555; }
+  .dec-box { background: rgba(76,175,144,0.1); border-left: 4px solid #4CAF90; color: #4CAF90; }
+
+  .stats-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:15px; margin-top:20px;}
+  .stat-card { background: rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.05); padding:20px; border-radius:6px; text-align:center;}
+
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo-mark"><div class="logo-icon">N</div><span class="logo-name">NexBank</span></div>
+  <nav class="nav-section">
+    <div class="nav-label">Security & Auth</div>
+    <a href="privileges.html" class="nav-item"><span class="nav-icon">🛡️</span> Privilege Matrix</a>
+    <a href="security.html" class="nav-item active"><span class="nav-icon">🔐</span> Data Encryption</a>
+    
+    <div class="nav-label" >Admin Actions</div>
+    <a href="admin.html" class="nav-item">📊 Dashboard / Admin</a>
+    <a href="audit.html" class="nav-item">📜 Audit Log</a>
+    
+    <div class="nav-label" >Documentation</div>
+    <a href="queries.html" class="nav-item">🔍 SQL Queries</a>
+    <a href="er-diagram.html" class="nav-item">📈 ER Diagram</a>
+    <a href="cloud.html" class="nav-item">☁️ Cloud Architecture</a>
+
+    <a href="#" onclick="logout()" class="nav-item" >↩ Sign Out</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="page-header">
+    <h1>Transparent Data Encryption (TDE)</h1>
+    <span class="badge">Security: AES-256-CBC</span>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Live Node.js Crypto Demo</div>
+    <div>Enter a mock Account or Card Number:</div>
+    <input type="text" id="plainText" placeholder="e.g. 1234-5678-9012-3456" />
+    <br>
+    
+    <button class="btn" onclick="encryptData()">🔒 Encrypt Data</button>
+    
+    <div id="encResult" class="result-box enc-box"></div>
+    
+    <div  id="decAction" style="display:none;">
+        <button class="btn btn-outline" onclick="decryptData()">🔓 Reverse Decryption</button>
+    </div>
+
+    <div id="decResult" class="result-box dec-box"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Global Security Parameters</div>
+    <div class="stats-grid" id="statsGrid">
+        <!-- populated by js -->
+    </div>
+  </div>
+
+</main>
+
+<script>
+  function logout() {
+      fetch('/logout').then(() => {
+          localStorage.removeItem('userRole');
+          window.location.href = 'index.html';
+      });
+  }
+
+  let currentEncrypted = "";
+
+  function encryptData() {
+      const txt = document.getElementById('plainText').value;
+      if(!txt) return alert("Enter some text!");
+      
+      document.getElementById('encResult').style.display = 'block';
+      document.getElementById('encResult').innerText = "Processing AES-256-CBC...";
+      document.getElementById('decResult').style.display = 'none';
+
+      setTimeout(() => {
+          fetch('/encrypt', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({text: txt})
+          }).then(r=>r.json()).then(res => {
+              currentEncrypted = res.encrypted;
+              document.getElementById('encResult').innerHTML = `<b>ENCRYPTED HEX:</b><br>${res.encrypted}`;
+          });
+      }, 400); // fake animation delay
+  }
+
+  function decryptData() {
+      if(!currentEncrypted) return;
+      document.getElementById('decResult').style.display = 'block';
+      document.getElementById('decResult').innerText = "Decrypting...";
+
+      setTimeout(() => {
+          fetch('/decrypt', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({encrypted: currentEncrypted})
+          }).then(r=>r.json()).then(res => {
+              document.getElementById('decResult').innerHTML = `<b>DECRYPTED VALUE:</b><br>${res.decrypted}`;
+          });
+      }, 400);
+  }
+
+  fetch('/security-stats').then(r=>r.json()).then(d => {
+      document.getElementById('statsGrid').innerHTML = `
+        <div class="stat-card">
+            <div style="color:var(--muted); font-size:11px;">ALGORITHM</div>
+            <div >${d.encryptionAlgorithm}</div>
+        </div>
+        <div class="stat-card">
+            <div style="color:var(--muted); font-size:11px;">HASH</div>
+            <div >${d.hashAlgorithm}</div>
+        </div>
+        <div class="stat-card">
+            <div style="color:var(--muted); font-size:11px;">TOTAL ENCRYPTED</div>
+            <div >${d.totalEncryptedRecords}</div>
+        </div>
+        <div class="stat-card">
+            <div style="color:var(--muted); font-size:11px;">SSL / TLS</div>
+            <div >${d.sslEnabled ? 'ACTIVE' : 'INACTIVE'}</div>
+        </div>
+      `;
+  });
+</script>
+</body>
+</html>

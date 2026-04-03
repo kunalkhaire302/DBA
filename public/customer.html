@@ -47,13 +47,8 @@
   }
 
   /* Sidebar */
-  .sidebar {
-    width: 260px; min-height: 100vh; background: var(--navy-3);
-    border-right: 1px solid var(--border); display: flex;
-    flex-direction: column; padding: 36px 24px; gap: 40px;
-    position: fixed; top: 0; left: 0; bottom: 0; z-index: 10;
-  }
-  .logo-mark { display: flex; align-items: center; gap: 12px; }
+  .sidebar { width: 260px; min-height: 100vh; background: var(--navy-3); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 36px 24px; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; gap: 40px;}
+  .logo-mark { display: flex; align-items: center; gap: 12px; margin-right: 0px; }
   .logo-icon {
     width: 38px; height: 38px;
     background: linear-gradient(135deg, var(--gold), var(--gold-light));
@@ -62,8 +57,8 @@
     font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 600; color: var(--navy);
   }
   .logo-name { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 300; letter-spacing: 0.08em; }
-  .nav-section { display: flex; flex-direction: column; gap: 4px; }
-  .nav-label { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); padding: 0 12px; margin-bottom: 8px; }
+  .nav-section { display: flex; flex-direction: column; gap: 4px; align-items: stretch; flex: unset; margin: 0; }
+  .nav-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 10px 0 5px 10px; }
   .nav-item {
     display: flex; align-items: center; gap: 12px; padding: 11px 14px;
     border-radius: 4px; font-size: 13.5px; color: var(--muted);
@@ -79,7 +74,7 @@
   }
 
   /* Main */
-  .main { margin-left: 260px; flex: 1; padding: 50px 60px; position: relative; z-index: 1; animation: fadeIn 0.5s ease both; }
+  .main { margin-left: 260px; margin-right: auto; margin-top: 0; flex: 1; padding: 50px 60px; position: relative; z-index: 1; animation: fadeIn 0.5s ease both; max-width: 1200px; }
   @keyframes fadeIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
 
   .page-header {
@@ -184,7 +179,6 @@
   }
   .txn-icon.dep { background: rgba(76,175,144,0.12); }
   .txn-icon.wit { background: rgba(224,85,85,0.12); }
-  .txn-info { }
   .txn-type { font-size: 13px; font-weight: 500; color: var(--text); text-transform: capitalize; }
   .txn-acc { font-size: 11px; color: var(--muted); margin-top: 1px; }
   .txn-amount { font-family: 'Cormorant Garamond', serif; font-size: 20px; }

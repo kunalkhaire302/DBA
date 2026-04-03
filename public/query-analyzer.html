@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexBank — Query Analyzer</title>
+  <script>
+    if (localStorage.getItem('userRole') !== 'admin') {
+      window.location.href = 'index.html';
+    }
+  </script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --gold: #C9A84C;
+      --gold-light: #E8C97A;
+      --navy: #0B0F1A;
+      --navy-2: #111827;
+      --navy-3: #1C2433;
+      --text: #E8E4D9;
+      --muted: rgba(232, 228, 217, 0.45);
+      --border: rgba(201, 168, 76, 0.2);
+      --success: #4CAF90;
+      --danger: #E05555;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--navy);
+      color: var(--text);
+      display: flex;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: linear-gradient(rgba(201, 168, 76, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(201, 168, 76, 0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .sidebar { width: 260px; min-height: 100vh; background: var(--navy-3); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 36px 24px; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; gap: 40px; }
+
+    .logo-mark { display: flex; align-items: center; gap: 12px; margin-right: 0px; }
+
+    .logo-icon {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, var(--gold), var(--gold-light));
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--navy);
+    }
+
+    .logo-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 24px;
+      font-weight: 300;
+      letter-spacing: 0.08em;
+    }
+
+    .nav-section { display: flex; flex-direction: column; gap: 4px; align-items: stretch; flex: unset; margin: 0; }
+
+    .nav-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 10px 0 5px 10px; }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 14px;
+      border-radius: 4px;
+      font-size: 13.5px;
+      color: var(--muted);
+      cursor: pointer;
+      border: 1px solid transparent;
+      text-decoration: none;
+    }
+
+    .nav-item.active,
+    .nav-item:hover {
+      background: rgba(201, 168, 76, 0.08);
+      border-color: rgba(201, 168, 76, 0.15);
+      color: var(--gold-light);
+    }
+
+    .main {
+      margin-left: 260px; margin-right: auto; margin-top: 0;
+      flex: 1;
+      padding: 50px 60px;
+      position: relative;
+      z-index: 1;
+      max-width: calc(100vw - 260px);
+    }
+
+    .page-header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 24px;
+      margin-bottom: 40px;
+    }
+
+    .page-title h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 36px;
+      font-weight: 300;
+      letter-spacing: 0.02em;
+    }
+
+    .page-title p {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 40px;
+    }
+
+    .card {
+      background: var(--navy-2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 24px;
+      position: relative;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--gold), transparent);
+    }
+
+    .card-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 20px;
+      font-weight: 400;
+      margin-bottom: 16px;
+      color: var(--gold-light);
+    }
+
+    textarea {
+      width: 100%;
+      height: 120px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(201, 168, 76, 0.3);
+      color: #a9b5c7;
+      font-family: monospace;
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 12px;
+      resize: vertical;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+
+    button {
+      background: linear-gradient(135deg, var(--gold), var(--gold-light));
+      color: var(--navy);
+      border: none;
+      padding: 10px 24px;
+      border-radius: 3px;
+      font-weight: 500;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th,
+    td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(201, 168, 76, 0.1);
+    }
+
+    th {
+      color: var(--gold-light);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .slow-row {
+      background: rgba(224, 85, 85, 0.08) !important;
+      border-left: 2px solid var(--danger);
+    }
+
+    .query-txt {
+      font-family: monospace;
+      color: #a9b5c7;
+      max-width: 200px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: block;
+    }
+
+    /* Result Table wrapper for Dynamic Queries */
+    .result-wrapper {
+      max-height: 200px;
+      overflow: auto;
+      margin-top: 15px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(201, 168, 76, 0.1);
+      border-radius: 4px;
+      display: none;
+    }
+
+    .result-wrapper table th {
+      background: var(--navy-3);
+      position: sticky;
+      top: 0;
+    }
+  </style>
+</head>
+
+<body>
+
+  <aside class="sidebar">
+    <div class="logo-mark">
+      <div class="logo-icon">N</div><span class="logo-name">NexBank</span>
+    </div>
+    <nav class="nav-section">
+    <div class="nav-label">Admin Portal</div>
+    <a href="admin.html" class="nav-item">👤 Dashboard / Admin</a>
+    <a href="audit.html" class="nav-item">📜 Audit Log</a>
+    <a href="query-analyzer.html" class="nav-item active">⚡ Query Analyzer</a>
+
+    <div class="nav-label" >Documentation</div>
+    <a href="queries.html" class="nav-item">🔍 SQL Queries</a>
+    <a href="er-diagram.html" class="nav-item">📈 ER Diagram</a>
+    <a href="cloud.html" class="nav-item">☁️ Cloud Architecture</a>
+    <a href="about.html" class="nav-item">📄 About / Conclusion</a>
+
+    <a href="#" onclick="localStorage.removeItem('userRole'); window.location.href='index.html';" class="nav-item" >↩ Sign Out</a>
+  </nav>
+  </aside>
+
+  <main class="main">
+    <div class="page-header">
+      <div class="page-title">
+        <h1>Query Analyzer</h1>
+        <p>Monitor slow queries and analyze database route performance [Feature 8]</p>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- Chart Card -->
+      <div class="card">
+        <div class="card-title">Average Execution Time (ms) by Route</div>
+        <canvas id="routeChart" height="200"></canvas>
+      </div>
+
+      <!-- Manual Query Runner -->
+      <div class="card">
+        <div class="card-title">Raw Query Executor</div>
+        <p style="font-size:12px; color:var(--muted); margin-bottom:10px;">Warning: Only SELECT queries are permitted by
+          engine policy.</p>
+        <textarea id="manualQuery" placeholder="SELECT * FROM account LIMIT 5;"></textarea>
+        <button onclick="runManualQuery()">Execute</button>
+        <div id="queryError" ></div>
+        <div class="result-wrapper" id="resultWrapper">
+          <table id="resultTable">
+            <thead id="resultHead"></thead>
+            <tbody id="resultBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 30px;">
+      <div class="card-title">Slow Queries (> 100ms)</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Log ID</th>
+            <th>Route</th>
+            <th>Execution Time</th>
+            <th>Query</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody id="slowQueriesBody"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Recent Query Stream</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Log ID</th>
+            <th>Route</th>
+            <th>Execution Time</th>
+            <th>Query</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody id="recentQueriesBody"></tbody>
+      </table>
+    </div>
+
+  </main>
+
+  <script>
+    // Load everything
+    let chartInstance = null;
+
+    function loadAnalyzers() {
+      fetch('/query-logs')
+        .then(res => res.json())
+        .then(data => {
+          // Populate Recent Queries
+          const recentBody = document.getElementById('recentQueriesBody');
+          recentBody.innerHTML = '';
+
+          // Render Table (highlight if > 100ms)
+          data.forEach(log => {
+            const tr = document.createElement('tr');
+            if (log.execution_time_ms > 100) tr.classList.add('slow-row');
+            tr.innerHTML = `
+                    <td>#${log.log_id}</td>
+                    <td><span style="background:rgba(201,168,76,0.1); padding:2px 6px; border-radius:3px; font-size:10px;">${log.route_called}</span></td>
+                    <td style="color:${log.execution_time_ms > 100 ? 'var(--danger)' : 'var(--success)'}">${log.execution_time_ms} ms</td>
+                    <td><span class="query-txt" title="${log.query_text.replace(/"/g, '&quot;')}">${log.query_text}</span></td>
+                    <td style="color:var(--muted);">${new Date(log.timestamp).toLocaleString()}</td>
+                `;
+            recentBody.appendChild(tr);
+          });
+
+          // Group by route for Chart
+          const routeStats = {};
+          data.forEach(log => {
+            if (!routeStats[log.route_called]) routeStats[log.route_called] = { total: 0, count: 0 };
+            routeStats[log.route_called].total += log.execution_time_ms;
+            routeStats[log.route_called].count++;
+          });
+
+          const labels = [];
+          const avgData = [];
+          for (const route in routeStats) {
+            labels.push(route);
+            avgData.push((routeStats[route].total / routeStats[route].count).toFixed(2));
+          }
+
+          // Draw Chart
+          const ctx = document.getElementById('routeChart').getContext('2d');
+          if (chartInstance) chartInstance.destroy();
+          chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: 'Avg execution time (ms)',
+                data: avgData,
+                backgroundColor: 'rgba(201,168,76,0.4)',
+                borderColor: '#C9A84C',
+                borderWidth: 1
+              }]
+            },
+            options: {
+              responsive: true,
+              scales: {
+                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(232,228,217,0.5)' } },
+                x: { grid: { display: false }, ticks: { color: 'rgba(232,228,217,0.5)' } }
+              },
+              plugins: { legend: { display: false } }
+            }
+          });
+        });
+
+      fetch('/slow-queries')
+        .then(res => res.json())
+        .then(data => {
+          const slowBody = document.getElementById('slowQueriesBody');
+          slowBody.innerHTML = '';
+          if (data.length === 0) {
+            slowBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--muted);">No slow queries detected! System is blazing fast 🚀</td></tr>';
+            return;
+          }
+          data.forEach(log => {
+            const tr = document.createElement('tr');
+            tr.classList.add('slow-row');
+            tr.innerHTML = `
+                    <td>#${log.log_id}</td>
+                    <td>${log.route_called}</td>
+                    <td style="color:var(--danger); font-weight:600;">${log.execution_time_ms} ms</td>
+                    <td><span class="query-txt">${log.query_text}</span></td>
+                    <td style="color:var(--muted);">${new Date(log.timestamp).toLocaleString()}</td>
+                `;
+            slowBody.appendChild(tr);
+          });
+        });
+    }
+
+    function runManualQuery() {
+      const qStr = document.getElementById('manualQuery').value;
+      const btn = document.querySelector('button');
+      const wrapper = document.getElementById('resultWrapper');
+      const thead = document.getElementById('resultHead');
+      const tbody = document.getElementById('resultBody');
+      const errDiv = document.getElementById('queryError');
+
+      errDiv.innerHTML = '';
+      btn.innerText = 'Running...';
+
+      fetch('/run-query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: qStr })
+      })
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Server error');
+          return data;
+        })
+        .then(data => {
+          btn.innerText = 'Execute';
+          thead.innerHTML = ''; tbody.innerHTML = '';
+          wrapper.style.display = 'block';
+
+          if (data.length === 0) {
+            tbody.innerHTML = '<tr><td>0 rows returned</td></tr>';
+            return;
+          }
+
+          // Build headers dynamically
+          const columns = Object.keys(data[0]);
+          let headRow = '<tr>';
+          columns.forEach(col => headRow += `<th>${col}</th>`);
+          headRow += '</tr>';
+          thead.innerHTML = headRow;
+
+          // Build data rows
+          data.forEach(row => {
+            let tr = '<tr>';
+            columns.forEach(col => tr += `<td>${row[col]}</td>`);
+            tr += '</tr>';
+            tbody.innerHTML += tr;
+          });
+
+          loadAnalyzers(); // Refresh metrics below immediately
+        })
+        .catch(err => {
+          btn.innerText = 'Execute';
+          wrapper.style.display = 'none';
+          errDiv.innerHTML = err.message;
+        });
+    }
+
+    // Initial load
+    loadAnalyzers();
+
+  </script>
+</body>
+
+</html>
