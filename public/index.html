@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NexBank — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --gold: #C9A84C;
+    --gold-light: #E8C97A;
+    --navy: #0B0F1A;
+    --navy-2: #111827;
+    --navy-3: #1C2433;
+    --border: rgba(201,168,76,0.2);
+    --text: #E8E4D9;
+    --muted: rgba(232,228,217,0.45);
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--navy);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* Animated background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 80%, rgba(201,168,76,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 80% at 80% 20%, rgba(28,36,51,0.9) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* Grid lines */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(201,168,76,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(201,168,76,0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+  }
+
+  .page-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: min(960px, 95vw);
+    min-height: 580px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+    animation: fadeUp 0.8s ease both;
+    box-shadow: 0 40px 120px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,168,76,0.1);
+  }
+
+  @keyframes fadeUp {
+    from { opacity:0; transform: translateY(30px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+
+  /* Left panel */
+  .brand-panel {
+    background: linear-gradient(155deg, var(--navy-3) 0%, #0d1420 100%);
+    padding: 60px 50px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    border-right: 1px solid var(--border);
+  }
+
+  .brand-panel::before {
+    content: '';
+    position: absolute;
+    bottom: -40px; right: -40px;
+    width: 220px; height: 220px;
+    border: 1px solid rgba(201,168,76,0.12);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .brand-panel::after {
+    content: '';
+    position: absolute;
+    bottom: -80px; right: -80px;
+    width: 320px; height: 320px;
+    border: 1px solid rgba(201,168,76,0.06);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .logo-mark {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--gold), var(--gold-light));
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px; font-weight: 600; color: var(--navy);
+  }
+
+  .logo-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px; font-weight: 300;
+    letter-spacing: 0.08em;
+    color: var(--text);
+  }
+
+  .brand-tagline {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 38px;
+    font-weight: 300;
+    line-height: 1.25;
+    color: var(--text);
+  }
+  .brand-tagline span {
+    color: var(--gold);
+    font-style: italic;
+  }
+
+  .brand-sub {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.7;
+    letter-spacing: 0.02em;
+    max-width: 280px;
+  }
+
+  .dots {
+    display: flex; gap: 6px;
+  }
+  .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--border);
+  }
+  .dot.active { background: var(--gold); }
+
+  /* Right panel */
+  .login-panel {
+    background: var(--navy-2);
+    padding: 60px 50px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 32px;
+  }
+
+  .panel-header h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 30px;
+    font-weight: 400;
+    color: var(--text);
+    letter-spacing: 0.02em;
+  }
+  .panel-header p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 0.03em;
+  }
+
+  .divider {
+    width: 40px; height: 1px;
+    background: linear-gradient(90deg, var(--gold), transparent);
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  label {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  input {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(201,168,76,0.15);
+    border-radius: 2px;
+    padding: 14px 18px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
+    letter-spacing: 0.02em;
+  }
+  input::placeholder { color: rgba(232,228,217,0.2); }
+  input:focus {
+    border-color: rgba(201,168,76,0.5);
+    background: rgba(201,168,76,0.04);
+    box-shadow: 0 0 0 3px rgba(201,168,76,0.06);
+  }
+
+  .btn {
+    background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+    color: var(--navy);
+    border: none;
+    padding: 15px 24px;
+    border-radius: 2px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+    width: 100%;
+    box-shadow: 0 4px 24px rgba(201,168,76,0.2);
+  }
+  .btn:hover {
+    opacity: 0.92;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 32px rgba(201,168,76,0.3);
+  }
+  .btn:active { transform: translateY(0); }
+
+  .footer-note {
+    text-align: center;
+    font-size: 11px;
+    color: rgba(232,228,217,0.2);
+    letter-spacing: 0.05em;
+  }
+
+  @media (max-width: 680px) {
+    .page-wrapper { grid-template-columns: 1fr; }
+    .brand-panel { display: none; }
+    .login-panel { padding: 40px 30px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-wrapper">
+  <!-- Left Brand Panel -->
+  <div class="brand-panel">
+    <div class="logo-mark">
+      <div class="logo-icon">N</div>
+      <span class="logo-name">NexBank</span>
+    </div>
+
+    <div>
+      <p class="brand-tagline">Banking <span>refined</span><br>for a new era.</p>
+      <p class="brand-sub" style="margin-top:20px;">Secure, elegant, and efficient financial management for customers, tellers, and administrators.</p>
+    </div>
+
+    <div>
+      <div class="dots">
+        <div class="dot active"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Login Panel -->
+  <div class="login-panel">
+    <div class="panel-header">
+      <h2>Welcome back</h2>
+      <p>Sign in to access your portal</p>
+    </div>
+
+    <div class="divider"></div>
+
+    <div style="display:flex; flex-direction:column; gap:18px;">
+      <div class="field">
+        <label>Username</label>
+        <input id="username" type="text" placeholder="Enter your username">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input id="password" type="password" placeholder="••••••••">
+      </div>
+    </div>
+
+    <button class="btn" onclick="login()">Sign In</button>
+
+    <p class="footer-note">© 2025 NexBank · Secured Connection</p>
+  </div>
+</div>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  const role = localStorage.getItem('userRole');
+  if (role === 'admin') location = 'admin.html';
+  else if (role === 'teller') location = 'teller.html';
+  else if (role === 'customer') location = 'customer.html';
+});
+
+function login() {
+  const btn = document.querySelector('.btn');
+  btn.textContent = 'Authenticating...';
+  btn.style.opacity = '0.7';
+
+  fetch("/login", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      username: document.getElementById("username").value,
+      password: document.getElementById("password").value
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.role) {
+      localStorage.setItem('userRole', data.role);
+    }
+    if (data.customer_id) {
+      localStorage.setItem('customerId', data.customer_id);
+    }
+    if (data.role === "admin") location = "admin.html";
+    else if (data.role === "teller") location = "teller.html";
+    else if (data.role === "customer") location = "customer.html";
+    else {
+      btn.textContent = 'Sign In';
+      btn.style.opacity = '1';
+      document.querySelector('input').style.borderColor = 'rgba(220,80,80,0.5)';
+      alert("Invalid credentials. Please try again.");
+    }
+  })
+  .catch(() => {
+    btn.textContent = 'Sign In';
+    btn.style.opacity = '1';
+  });
+}
+
+document.querySelectorAll('input').forEach(i => {
+  i.addEventListener('keydown', e => { if(e.key === 'Enter') login(); });
+});
+</script>
+</body>
+</html>

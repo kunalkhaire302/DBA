@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NexBank — Customer Portal</title>
+<script>
+  if (localStorage.getItem('userRole') !== 'customer') {
+    window.location.href = 'index.html';
+  }
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --gold: #C9A84C;
+    --gold-light: #E8C97A;
+    --navy: #0B0F1A;
+    --navy-2: #111827;
+    --navy-3: #1C2433;
+    --border: rgba(201,168,76,0.2);
+    --text: #E8E4D9;
+    --muted: rgba(232,228,217,0.45);
+    --success: #4CAF90;
+    --danger: #E05555;
+    --deposit-bg: rgba(76,175,144,0.08);
+    --withdraw-bg: rgba(224,85,85,0.08);
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--navy);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+  }
+
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(201,168,76,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(201,168,76,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 260px; min-height: 100vh; background: var(--navy-3);
+    border-right: 1px solid var(--border); display: flex;
+    flex-direction: column; padding: 36px 24px; gap: 40px;
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 10;
+  }
+  .logo-mark { display: flex; align-items: center; gap: 12px; }
+  .logo-icon {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--gold), var(--gold-light));
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 600; color: var(--navy);
+  }
+  .logo-name { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 300; letter-spacing: 0.08em; }
+  .nav-section { display: flex; flex-direction: column; gap: 4px; }
+  .nav-label { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); padding: 0 12px; margin-bottom: 8px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 12px; padding: 11px 14px;
+    border-radius: 4px; font-size: 13.5px; color: var(--muted);
+    cursor: pointer; transition: all 0.2s; border: 1px solid transparent; text-decoration: none;
+  }
+  .nav-item.active, .nav-item:hover { background: rgba(201,168,76,0.08); border-color: rgba(201,168,76,0.15); color: var(--gold-light); }
+  .nav-icon { font-size: 16px; }
+  .sidebar-footer { margin-top: auto; font-size: 12px; color: rgba(232,228,217,0.2); padding: 0 12px; }
+  .role-badge {
+    display: inline-block; background: rgba(201,168,76,0.12); border: 1px solid rgba(201,168,76,0.2);
+    color: var(--gold); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 20px; margin-bottom: 8px;
+  }
+
+  /* Main */
+  .main { margin-left: 260px; flex: 1; padding: 50px 60px; position: relative; z-index: 1; animation: fadeIn 0.5s ease both; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+
+  .page-header {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-bottom: 48px; padding-bottom: 28px; border-bottom: 1px solid var(--border);
+  }
+  .page-title h1 { font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 300; letter-spacing: 0.02em; }
+  .page-title p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  .layout { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 28px; align-items: start; }
+
+  /* Transaction card */
+  .card {
+    background: var(--navy-2); border: 1px solid var(--border);
+    border-radius: 4px; padding: 36px 40px; position: relative;
+  }
+  .card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0;
+    height: 2px; background: linear-gradient(90deg, var(--gold), transparent);
+  }
+  .card-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 400; margin-bottom: 4px; }
+  .card-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+
+  .field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+  label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  input, select {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(201,168,76,0.15);
+    border-radius: 2px; padding: 13px 16px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none;
+    transition: all 0.25s; width: 100%; appearance: none;
+  }
+  input::placeholder { color: rgba(232,228,217,0.18); }
+  input:focus, select:focus {
+    border-color: rgba(201,168,76,0.45); background: rgba(201,168,76,0.04);
+    box-shadow: 0 0 0 3px rgba(201,168,76,0.06);
+  }
+  select option { background: var(--navy-2); }
+
+  /* Type toggle */
+  .type-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .toggle-opt {
+    padding: 13px;
+    border: 1px solid rgba(201,168,76,0.15);
+    border-radius: 3px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--muted);
+    transition: all 0.2s;
+    user-select: none;
+    letter-spacing: 0.04em;
+  }
+  .toggle-opt.active-deposit {
+    background: var(--deposit-bg);
+    border-color: rgba(76,175,144,0.4);
+    color: var(--success);
+  }
+  .toggle-opt.active-withdraw {
+    background: var(--withdraw-bg);
+    border-color: rgba(224,85,85,0.4);
+    color: var(--danger);
+  }
+
+  .btn {
+    background: linear-gradient(135deg, var(--gold), var(--gold-light));
+    color: var(--navy); border: none; padding: 14px 28px;
+    border-radius: 2px; font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 500; letter-spacing: 0.1em;
+    text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(201,168,76,0.2); width: 100%; margin-top: 6px;
+  }
+  .btn:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 8px 28px rgba(201,168,76,0.3); }
+  .btn:active { transform: translateY(0); }
+
+  /* History */
+  .history-card {
+    background: var(--navy-2); border: 1px solid var(--border);
+    border-radius: 4px; padding: 28px 32px; position: relative;
+  }
+  .history-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0;
+    height: 2px; background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .history-title { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 400; margin-bottom: 20px; }
+
+  .txn-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 0; border-bottom: 1px solid rgba(201,168,76,0.06);
+    animation: slideIn 0.3s ease both;
+  }
+  @keyframes slideIn { from { opacity:0; transform:translateX(-10px); } to { opacity:1; transform:translateX(0); } }
+  .txn-item:last-child { border-bottom: none; }
+  .txn-left { display: flex; align-items: center; gap: 12px; }
+  .txn-icon {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 14px;
+  }
+  .txn-icon.dep { background: rgba(76,175,144,0.12); }
+  .txn-icon.wit { background: rgba(224,85,85,0.12); }
+  .txn-info { }
+  .txn-type { font-size: 13px; font-weight: 500; color: var(--text); text-transform: capitalize; }
+  .txn-acc { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .txn-amount { font-family: 'Cormorant Garamond', serif; font-size: 20px; }
+  .txn-amount.dep { color: var(--success); }
+  .txn-amount.wit { color: var(--danger); }
+
+  .empty-state {
+    text-align: center; padding: 32px;
+    color: var(--muted); font-size: 13px;
+  }
+  .empty-state div { font-size: 28px; margin-bottom: 8px; }
+
+  .toast {
+    position: fixed; bottom: 32px; right: 32px;
+    background: var(--navy-3); border: 1px solid rgba(76,175,144,0.3);
+    border-left: 3px solid var(--success); padding: 16px 24px;
+    border-radius: 4px; font-size: 13px; color: var(--text);
+    transform: translateX(120%); transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 100; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .toast.show { transform: translateX(0); }
+
+  @media (max-width: 900px) {
+    .main { margin-left: 0; padding: 30px 20px; }
+    .sidebar { display: none; }
+    .layout { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo-mark">
+    <div class="logo-icon">N</div>
+    <span class="logo-name">NexBank</span>
+  </div>
+  <nav class="nav-section">
+    <div class="nav-label">Customer Portal</div>
+    <a href="#" class="nav-item active"><span class="nav-icon">💳</span> Transactions</a>
+    <a href="#" onclick="localStorage.removeItem('userRole'); window.location.href='index.html';" class="nav-item"><span class="nav-icon">↩</span> Sign Out</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="role-badge">Customer</div>
+    <div>Self-service access</div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="page-header">
+    <div class="page-title">
+      <h1>Transactions</h1>
+      <p>Deposit or withdraw from your account</p>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- Transaction Form -->
+    <div class="card">
+      <div class="card-title">New Transaction</div>
+      <div class="card-sub">Enter your account details and transaction amount.</div>
+
+      <div class="field">
+        <label>Select Account</label>
+        <div class="select-wrap">
+          <select id="aid" onchange="loadHistory()">
+            <option value="">Select your account</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Amount (₹)</label>
+        <input id="amt" type="number" placeholder="Enter amount">
+      </div>
+
+      <div style="margin-bottom:22px;">
+        <label style="display:block; margin-bottom:10px;">Transaction Type</label>
+        <div class="type-toggle">
+          <div class="toggle-opt active-deposit" id="opt-dep" onclick="selectType('deposit')">⬆ Deposit</div>
+          <div class="toggle-opt" id="opt-wit" onclick="selectType('withdraw')">⬇ Withdraw</div>
+        </div>
+        <input type="hidden" id="txn-type" value="deposit">
+      </div>
+
+      <button class="btn" onclick="txn()">Submit Transaction</button>
+    </div>
+
+    <!-- Transaction History (session) -->
+    <div class="history-card">
+      <div class="history-title">Recent Activity</div>
+      <div id="history">
+        <div class="empty-state">
+          <div>💳</div>
+          <div>No transactions yet this session</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const history = [];
+
+function selectType(type) {
+  document.getElementById('txn-type').value = type;
+  const dep = document.getElementById('opt-dep');
+  const wit = document.getElementById('opt-wit');
+  dep.className = 'toggle-opt ' + (type === 'deposit' ? 'active-deposit' : '');
+  wit.className = 'toggle-opt ' + (type === 'withdraw' ? 'active-withdraw' : '');
+}
+
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = (isError ? '✗ ' : '✓ ') + msg;
+  t.style.borderLeftColor = isError ? '#E05555' : '#4CAF90';
+  t.style.borderColor = isError ? 'rgba(224,85,85,0.3)' : 'rgba(76,175,144,0.3)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function renderHistory() {
+  const el = document.getElementById('history');
+  if (history.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div>💳</div><div>No transactions yet this session</div></div>';
+    return;
+  }
+  el.innerHTML = history.slice().reverse().map((t, i) => `
+    <div class="txn-item" style="animation-delay:${i * 0.06}s">
+      <div class="txn-left">
+        <div class="txn-icon ${t.type === 'deposit' ? 'dep' : 'wit'}">${t.type === 'deposit' ? '⬆' : '⬇'}</div>
+        <div class="txn-info">
+          <div class="txn-type">${t.type}</div>
+          <div class="txn-acc">Account #${t.acc}</div>
+        </div>
+      </div>
+      <div class="txn-amount ${t.type === 'deposit' ? 'dep' : 'wit'}">${t.type === 'deposit' ? '+' : '-'}₹${Number(t.amt).toLocaleString('en-IN')}</div>
+    </div>
+  `).join('');
+}
+
+function txn() {
+  const btn = document.querySelector('.btn');
+  const acc = document.getElementById("aid").value;
+  const amt = document.getElementById("amt").value;
+  const type = document.getElementById("txn-type").value;
+
+  if (!acc || !amt) { showToast('Please fill in all fields.', true); return; }
+
+  btn.textContent = 'Processing...'; btn.style.opacity = '0.7';
+
+  fetch("/transaction", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ account_id: acc, amount: amt, type: type })
+  })
+  .then(res => {
+    if (!res.ok) throw new Error("Transaction Failed");
+    return res.json();
+  })
+  .then(data => {
+    btn.textContent = 'Submit Transaction'; btn.style.opacity = '1';
+    showToast('Transaction completed successfully');
+    document.getElementById('amt').value = '';
+    loadHistory(); // Refresh ledger
+  })
+  .catch(() => {
+    btn.textContent = 'Submit Transaction'; btn.style.opacity = '1';
+    showToast('Transaction failed. Try again.', true);
+  });
+}
+
+function loadAccounts(retainSelection = false) {
+  const cid = localStorage.getItem('customerId');
+  if (!cid || cid === 'null') return; // Not a linked user
+
+  fetch(`/my-accounts/${cid}`)
+    .then(res => res.json())
+    .then(data => {
+      const select = document.getElementById('aid');
+      const val = select.value;
+      select.innerHTML = '<option value="">Select your account</option>';
+      data.forEach(acc => {
+        select.innerHTML += `<option value="${acc.account_id}">Account #${acc.account_id} (${acc.account_type}) - ₹${acc.balance}</option>`;
+      });
+      if (retainSelection && val) select.value = val;
+    });
+}
+
+function loadHistory() {
+  const acc = document.getElementById("aid").value;
+  if (!acc) return;
+  fetch(`/history/${acc}`)
+    .then(res => res.json())
+    .then(data => {
+      history.length = 0;
+      data.forEach(t => history.push({ acc: t.account_id, amt: t.amount, type: t.type }));
+      renderHistory();
+      
+      // Update balance info in dropdown gently
+      loadAccounts(true);
+    });
+}
+
+loadAccounts();
+</script>
+</body>
+</html>

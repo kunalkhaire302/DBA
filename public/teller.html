@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NexBank — Teller Portal</title>
+<script>
+  if (localStorage.getItem('userRole') !== 'teller') {
+    window.location.href = 'index.html';
+  }
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --gold: #C9A84C;
+    --gold-light: #E8C97A;
+    --navy: #0B0F1A;
+    --navy-2: #111827;
+    --navy-3: #1C2433;
+    --border: rgba(201,168,76,0.2);
+    --text: #E8E4D9;
+    --muted: rgba(232,228,217,0.45);
+    --success: #4CAF90;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--navy);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(201,168,76,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(201,168,76,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 260px;
+    min-height: 100vh;
+    background: var(--navy-3);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 36px 24px;
+    gap: 40px;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 10;
+  }
+  .logo-mark { display: flex; align-items: center; gap: 12px; }
+  .logo-icon {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--gold), var(--gold-light));
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px; font-weight: 600; color: var(--navy);
+  }
+  .logo-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 24px; font-weight: 300; letter-spacing: 0.08em;
+  }
+  .nav-section { display: flex; flex-direction: column; gap: 4px; }
+  .nav-label {
+    font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted); padding: 0 12px; margin-bottom: 8px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 14px; border-radius: 4px;
+    font-size: 13.5px; color: var(--muted); cursor: pointer;
+    transition: all 0.2s; border: 1px solid transparent; text-decoration: none;
+  }
+  .nav-item.active, .nav-item:hover {
+    background: rgba(201,168,76,0.08); border-color: rgba(201,168,76,0.15); color: var(--gold-light);
+  }
+  .nav-icon { font-size: 16px; }
+  .sidebar-footer { margin-top: auto; font-size: 12px; color: rgba(232,228,217,0.2); padding: 0 12px; }
+  .role-badge {
+    display: inline-block; background: rgba(201,168,76,0.12); border: 1px solid rgba(201,168,76,0.2);
+    color: var(--gold); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 20px; margin-bottom: 8px;
+  }
+
+  /* Main */
+  .main {
+    margin-left: 260px; flex: 1; padding: 50px 60px;
+    position: relative; z-index: 1;
+    animation: fadeIn 0.5s ease both;
+  }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+
+  .page-header {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-bottom: 48px; padding-bottom: 28px; border-bottom: 1px solid var(--border);
+  }
+  .page-title h1 {
+    font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 300; letter-spacing: 0.02em;
+  }
+  .page-title p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    align-items: start;
+  }
+
+  .card {
+    background: var(--navy-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 36px 40px;
+    position: relative;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--gold), transparent);
+  }
+
+  .card-title {
+    font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 400; margin-bottom: 4px;
+  }
+  .card-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+
+  .field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+  label {
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+  }
+  input, select {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(201,168,76,0.15);
+    border-radius: 2px;
+    padding: 13px 16px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.25s;
+    width: 100%;
+    appearance: none;
+  }
+  input::placeholder { color: rgba(232,228,217,0.18); }
+  input:focus, select:focus {
+    border-color: rgba(201,168,76,0.45);
+    background: rgba(201,168,76,0.04);
+    box-shadow: 0 0 0 3px rgba(201,168,76,0.06);
+  }
+  select option { background: var(--navy-2); }
+
+  .select-wrap { position: relative; }
+  .select-wrap::after {
+    content: '▾';
+    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+    color: var(--gold); pointer-events: none; font-size: 14px;
+  }
+
+  .btn {
+    background: linear-gradient(135deg, var(--gold), var(--gold-light));
+    color: var(--navy); border: none; padding: 14px 28px;
+    border-radius: 2px; font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 500; letter-spacing: 0.1em;
+    text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(201,168,76,0.2); width: 100%; margin-top: 10px;
+  }
+  .btn:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 8px 28px rgba(201,168,76,0.3); }
+  .btn:active { transform: translateY(0); }
+
+  /* Info panel */
+  .info-panel {
+    background: rgba(201,168,76,0.04);
+    border: 1px solid rgba(201,168,76,0.1);
+    border-radius: 4px;
+    padding: 28px;
+  }
+  .info-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px; color: var(--gold-light); margin-bottom: 16px;
+  }
+  .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(201,168,76,0.07); font-size: 13px; }
+  .info-row:last-child { border-bottom: none; }
+  .info-key { color: var(--muted); }
+  .info-val { color: var(--text); font-weight: 500; }
+
+  .toast {
+    position: fixed; bottom: 32px; right: 32px;
+    background: var(--navy-3); border: 1px solid rgba(76,175,144,0.3);
+    border-left: 3px solid var(--success); padding: 16px 24px;
+    border-radius: 4px; font-size: 13px; color: var(--text);
+    transform: translateX(120%); transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 100; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .toast.show { transform: translateX(0); }
+
+  @media (max-width: 900px) {
+    .main { margin-left: 0; padding: 30px 20px; }
+    .sidebar { display: none; }
+    .layout { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo-mark">
+    <div class="logo-icon">N</div>
+    <span class="logo-name">NexBank</span>
+  </div>
+  <nav class="nav-section">
+    <div class="nav-label">Teller Portal</div>
+    <a href="#" class="nav-item active"><span class="nav-icon">🏦</span> Create Account</a>
+    <a href="#" onclick="localStorage.removeItem('userRole'); window.location.href='index.html';" class="nav-item"><span class="nav-icon">↩</span> Sign Out</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="role-badge">Teller</div>
+    <div>Account management access</div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="page-header">
+    <div class="page-title">
+      <h1>Account Management</h1>
+      <p>Create and manage customer bank accounts</p>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- Form -->
+    <div class="card">
+      <div class="card-title">Open New Account</div>
+      <div class="card-sub">Link a new account to an existing customer ID.</div>
+
+      <div class="field">
+        <label>Customer ID</label>
+        <input id="cid" type="number" placeholder="e.g. 1001">
+      </div>
+      <div class="field">
+        <label>Account Type</label>
+        <div class="select-wrap">
+          <select id="type">
+            <option value="">Select type</option>
+            <option value="Saving">Savings Account</option>
+            <option value="Current">Current Account</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Initial Balance (₹)</label>
+        <input id="bal" type="number" placeholder="Minimum deposit amount">
+      </div>
+
+      <button class="btn" onclick="createAcc()">Open Account</button>
+    </div>
+
+    <!-- Info -->
+    <div>
+      <div class="info-panel">
+        <div class="info-title">Account Types</div>
+        <div class="info-row"><span class="info-key">Savings Account</span><span class="info-val">Interest-bearing</span></div>
+        <div class="info-row"><span class="info-key">Current Account</span><span class="info-val">Business / daily use</span></div>
+        <div class="info-row"><span class="info-key">Min. Savings Deposit</span><span class="info-val">₹500</span></div>
+        <div class="info-row"><span class="info-key">Min. Current Deposit</span><span class="info-val">₹1,000</span></div>
+        <div class="info-row"><span class="info-key">Currency</span><span class="info-val">INR ₹</span></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = (isError ? '✗ ' : '✓ ') + msg;
+  t.style.borderLeftColor = isError ? '#E05555' : '#4CAF90';
+  t.style.borderColor = isError ? 'rgba(224,85,85,0.3)' : 'rgba(76,175,144,0.3)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function createAcc() {
+  const btn = document.querySelector('.btn');
+  btn.textContent = 'Processing...'; btn.style.opacity = '0.7';
+
+  fetch("/createAccount", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      customer_id: document.getElementById("cid").value,
+      account_type: document.getElementById("type").value,
+      balance: document.getElementById("bal").value
+    })
+  })
+  .then(res => {
+    if (!res.ok) throw new Error("Server error");
+    return res.json();
+  })
+  .then(data => {
+    btn.textContent = 'Open Account'; btn.style.opacity = '1';
+    showToast('Account opened successfully');
+    document.querySelectorAll('input').forEach(i => i.value = '');
+    document.getElementById('type').value = 'savings';
+  })
+  .catch(() => {
+    btn.textContent = 'Open Account'; btn.style.opacity = '1';
+    showToast('Failed to open account. Check ID.', true);
+  });
+}
+</script>
+</body>
+</html>
