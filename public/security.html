@@ -47,6 +47,14 @@
   .stats-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:15px; margin-top:20px;}
   .stat-card { background: rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.05); padding:20px; border-radius:6px; text-align:center;}
 
+
+  /* Hide scrollbars globally */
+  html, body { overflow: hidden; }
+  * { -ms-overflow-style: none; scrollbar-width: none; }
+  *::-webkit-scrollbar { display: none; }
+  .main { overflow-y: auto; height: 100vh; }
+  .sidebar { overflow-y: auto; }
+
 </style>
 </head>
 <body>
@@ -114,22 +122,34 @@
   let currentEncrypted = "";
 
   function encryptData() {
-      const txt = document.getElementById('plainText').value;
-      if(!txt) return alert("Enter some text!");
+      const txt = document.getElementById('plainText').value.trim();
+      if(!txt) return alert("Enter some text to encrypt!");
       
-      document.getElementById('encResult').style.display = 'block';
-      document.getElementById('encResult').innerText = "Processing AES-256-CBC...";
-      document.getElementById('decResult').style.display = 'none';
+      const encResult = document.getElementById('encResult');
+      const decResult = document.getElementById('decResult');
+      const decAction = document.getElementById('decAction');
+      
+      encResult.style.display = 'block';
+      encResult.innerText = "Processing AES-256-CBC...";
+      decResult.style.display = 'none';
+      decAction.style.display = 'none';
 
-      setTimeout(() => {
-          fetch('/encrypt', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({text: txt})
-          }).then(r=>r.json()).then(res => {
-              currentEncrypted = res.encrypted;
-              document.getElementById('encResult').innerHTML = `<b>ENCRYPTED HEX:</b><br>${res.encrypted}`;
-          });
-      }, 400); // fake animation delay
+      fetch('/encrypt', {
+        method:'POST', 
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({text: txt})
+      })
+      .then(r => { if(!r.ok) throw new Error('Server error'); return r.json(); })
+      .then(res => {
+          currentEncrypted = res.encrypted;
+          encResult.innerHTML = `<b>ENCRYPTED (AES-256-CBC):</b><br><span style="font-size:12px;">${res.encrypted}</span>`;
+          // BUG-18 FIX: Show decrypt button automatically
+          decAction.style.display = 'block';
+      })
+      .catch(err => {
+          encResult.innerText = 'Encryption failed: ' + err.message;
+          encResult.style.borderLeftColor = '#E05555';
+      });
   }
 
   function decryptData() {

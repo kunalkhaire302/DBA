@@ -1,3 +1,4 @@
+DROP DATABASE IF EXISTS bank_db;
 CREATE DATABASE bank_db;
 USE bank_db;
 
@@ -31,13 +32,33 @@ CREATE TABLE transactions (
 );
 select *from transactions;
 
+CREATE TABLE roles (
+    role_id INT PRIMARY KEY AUTO_INCREMENT,
+    role_name VARCHAR(20) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE users (
     user_id INT PRIMARY KEY AUTO_INCREMENT,
-    username VARCHAR(50),
-    password VARCHAR(50),
+    username VARCHAR(50) NOT NULL,
+    password VARCHAR(255) NOT NULL,
     role VARCHAR(20),
-    customer_id INT,
+    position VARCHAR(50),
+    email VARCHAR(100),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    customer_id INT UNIQUE,
     FOREIGN KEY (customer_id) REFERENCES customer(customer_id)
+);
+
+CREATE TABLE user_privileges (
+    privilege_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    privilege_name VARCHAR(50) NOT NULL,
+    granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    granted_by VARCHAR(50) DEFAULT 'System',
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
 
@@ -47,11 +68,19 @@ VALUES ('Test Customer', 'cust1@example.com', '1234567890', '123 Test St');
 -- Get the last inserted customer ID to link
 SET @last_cust_id = LAST_INSERT_ID();
 
-INSERT INTO users (username, password, role, customer_id)
+INSERT INTO roles (role_name, description) VALUES
+('admin', 'Administrator with full system access and privilege assignment capabilities'),
+('teller', 'Staff member managing customer accounts and processing transactions'),
+('customer', 'End-user with view-only access to their own accounts');
+
+-- Note: Passwords here are plain text for initial seed visualization.
+-- In production, these should be hashed via bcrypt (10 rounds).
+-- e.g. bcrypt.hashSync('admin123', 10)
+INSERT INTO users (username, password, role, position, email, customer_id)
 VALUES 
-('admin','admin123','admin', NULL),
-('teller','teller123','teller', NULL),
-('cust1','cust123','customer', @last_cust_id);
+('admin','admin123','admin', 'Head Database Administrator', 'admin@nexbank.com', NULL),
+('teller','teller123','teller', 'Senior Branch Teller', 'teller@nexbank.com', NULL),
+('cust1','cust123','customer', NULL, 'cust1@example.com', @last_cust_id);
 
 -- --------------------------------------------------------------------------
 -- FEATURE 1: AUDIT LOG AND TRIGGERS
@@ -102,6 +131,29 @@ FOR EACH ROW
 BEGIN
     INSERT INTO audit_log (table_name, action, new_value, performed_by)
     VALUES ('transactions', 'INSERT', CONCAT('TxnID: ', NEW.transaction_id, ', Acc: ', NEW.account_id, ', Amt: ', NEW.amount, ', Type: ', NEW.type), COALESCE(@app_user, USER()));
+END //
+
+-- Trigger for Users Table Privileges Auto-assignment
+CREATE TRIGGER after_user_insert
+AFTER INSERT ON users
+FOR EACH ROW
+BEGIN
+    IF NEW.role = 'admin' THEN
+        INSERT INTO user_privileges (user_id, privilege_name) VALUES 
+        (NEW.user_id, 'VIEW_ACCOUNTS'), (NEW.user_id, 'MANAGE_CUSTOMERS'), 
+        (NEW.user_id, 'PROCESS_TRANSACTIONS'), (NEW.user_id, 'VIEW_REPORTS'), 
+        (NEW.user_id, 'MANAGE_USERS'), (NEW.user_id, 'AUDIT_ACCESS');
+    ELSEIF NEW.role = 'teller' THEN
+        INSERT INTO user_privileges (user_id, privilege_name) VALUES 
+        (NEW.user_id, 'VIEW_ACCOUNTS'), (NEW.user_id, 'MANAGE_CUSTOMERS'), 
+        (NEW.user_id, 'PROCESS_TRANSACTIONS');
+    ELSE
+        INSERT INTO user_privileges (user_id, privilege_name) VALUES 
+        (NEW.user_id, 'VIEW_ACCOUNTS');
+    END IF;
+    
+    INSERT INTO audit_log (table_name, action, new_value, performed_by)
+    VALUES ('users', 'INSERT_PRIVS', CONCAT('Assigned default privileges for ', NEW.username), 'System_Trigger');
 END //
 
 DELIMITER ;

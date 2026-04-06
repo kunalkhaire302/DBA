@@ -5,9 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NexBank — Customer Portal</title>
 <script>
-  if (localStorage.getItem('userRole') !== 'customer') {
+  const _role = localStorage.getItem('userRole');
+  if (_role !== 'customer' && _role !== 'admin') {
     window.location.href = 'index.html';
   }
+  // BUG-21 FIX: Verify server-side session
+  fetch('/me').then(r => { if(!r.ok) { localStorage.removeItem('userRole'); window.location.href='index.html'; }}).catch(()=>{});
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -206,24 +209,20 @@
     .sidebar { display: none; }
     .layout { grid-template-columns: 1fr; }
   }
+
+  /* Hide scrollbars globally */
+  html, body { overflow: hidden; }
+  * { -ms-overflow-style: none; scrollbar-width: none; }
+  *::-webkit-scrollbar { display: none; }
+  .main { overflow-y: auto; height: 100vh; }
+  .sidebar { overflow-y: auto; }
+
 </style>
 </head>
 <body>
 
-<aside class="sidebar">
-  <div class="logo-mark">
-    <div class="logo-icon">N</div>
-    <span class="logo-name">NexBank</span>
-  </div>
-  <nav class="nav-section">
-    <div class="nav-label">Customer Portal</div>
-    <a href="#" class="nav-item active"><span class="nav-icon">💳</span> Transactions</a>
-    <a href="#" onclick="localStorage.removeItem('userRole'); window.location.href='index.html';" class="nav-item"><span class="nav-icon">↩</span> Sign Out</a>
-  </nav>
-  <div class="sidebar-footer">
-    <div class="role-badge">Customer</div>
-    <div>Self-service access</div>
-  </div>
+<aside class="sidebar" id="sidebar-container">
+  <!-- Dynamic Sidebar via JS -->
 </aside>
 
 <main class="main">
@@ -351,21 +350,61 @@ function txn() {
   });
 }
 
-function loadAccounts(retainSelection = false) {
-  const cid = localStorage.getItem('customerId');
-  if (!cid || cid === 'null') return; // Not a linked user
+function renderSidebar() {
+  const container = document.getElementById('sidebar-container');
+  const role = localStorage.getItem('userRole');
+  const isAdm = role === 'admin';
+  
+  if (!container) return;
+  
+  container.innerHTML = `
+    <div class="logo-mark">
+      <div class="logo-icon">N</div>
+      <span class="logo-name">NexBank</span>
+    </div>
+    <nav class="nav-section">
+      <div class="nav-label">${isAdm ? 'Admin Portal' : 'Customer Portal'}</div>
+      ${isAdm ? '<a href="admin.html" class="nav-item"><span class="nav-icon">👤</span> Dashboard / Admin</a>' : ''}
+      ${isAdm ? '<a href="teller.html" class="nav-item"><span class="nav-icon">🏦</span> Open Account</a>' : ''}
+      <a href="customer.html" class="nav-item active"><span class="nav-icon">💳</span> Transactions</a>
+      ${isAdm ? '<a href="audit.html" class="nav-item"><span class="nav-icon">📜</span> Audit Log</a>' : ''}
+      ${isAdm ? '<a href="query-analyzer.html" class="nav-item"><span class="nav-icon">⚡</span> Query Analyzer</a>' : ''}
+      <div class="nav-label">Documentation</div>
+      <a href="queries.html" class="nav-item"><span class="nav-icon">🔍</span> SQL Queries</a>
+      <a href="about.html" class="nav-item"><span class="nav-icon">📄</span> About</a>
+      <a href="#" onclick="localStorage.removeItem('userRole'); window.location.href='index.html';" class="nav-item"><span class="nav-icon">↩</span> Sign Out</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="role-badge">${isAdm ? 'Administrator' : 'Customer'}</div>
+      <div>${isAdm ? 'Full system access' : 'Self-service access'}</div>
+    </div>
+  `;
+}
 
-  fetch(`/my-accounts/${cid}`)
-    .then(res => res.json())
-    .then(data => {
-      const select = document.getElementById('aid');
-      const val = select.value;
-      select.innerHTML = '<option value="">Select your account</option>';
-      data.forEach(acc => {
-        select.innerHTML += `<option value="${acc.account_id}">Account #${acc.account_id} (${acc.account_type}) - ₹${acc.balance}</option>`;
-      });
-      if (retainSelection && val) select.value = val;
+async function loadAccounts(retainSelection = false) {
+  const role = localStorage.getItem('userRole');
+  const select = document.getElementById('aid');
+  if (!select) return;
+  const val = select.value;
+
+  if (role === 'admin') {
+    const res = await fetch('/api/all-accounts');
+    const data = await res.json();
+    select.innerHTML = '<option value="">Select individual account...</option>';
+    data.forEach(acc => {
+      select.innerHTML += `<option value="${acc.account_id}">ID #${acc.account_id} - ${acc.name} (₹${Number(acc.balance).toLocaleString('en-IN')})</option>`;
     });
+  } else {
+    const cid = localStorage.getItem('customerId');
+    if (!cid || cid === 'null') return;
+    const res = await fetch(`/my-accounts/${cid}`);
+    const data = await res.json();
+    select.innerHTML = '<option value="">Select your account</option>';
+    data.forEach(acc => {
+      select.innerHTML += `<option value="${acc.account_id}">Account #${acc.account_id} (${acc.account_type}) - ₹${Number(acc.balance).toLocaleString('en-IN')}</option>`;
+    });
+  }
+  if (retainSelection && val) select.value = val;
 }
 
 function loadHistory() {
@@ -383,6 +422,7 @@ function loadHistory() {
     });
 }
 
+renderSidebar();
 loadAccounts();
 </script>
 </body>

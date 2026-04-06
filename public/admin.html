@@ -9,6 +9,8 @@
     if (localStorage.getItem('userRole') !== 'admin') {
       window.location.href = 'index.html';
     }
+    // BUG-21 FIX: Also verify server-side session
+    fetch('/me').then(r => { if(!r.ok) { localStorage.removeItem('userRole'); window.location.href='index.html'; }}).catch(()=>{});
   </script>
   <link
     href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap"
@@ -371,7 +373,15 @@
         grid-column: 1;
       }
     }
-  </style>
+  
+  /* Hide scrollbars globally */
+  html, body { overflow: hidden; }
+  * { -ms-overflow-style: none; scrollbar-width: none; }
+  *::-webkit-scrollbar { display: none; }
+  .main { overflow-y: auto; height: 100vh; }
+  .sidebar { overflow-y: auto; }
+
+</style>
 </head>
 
 <body>
@@ -386,8 +396,11 @@
     <nav class="nav-section">
     <div class="nav-label">Admin Portal</div>
     <a href="admin.html" class="nav-item active"><span class="nav-icon">👤</span> Dashboard / Admin</a>
+    <a href="teller.html" class="nav-item"><span class="nav-icon">🏦</span> Open Account</a>
+    <a href="customer.html" class="nav-item"><span class="nav-icon">💳</span> Transactions</a>
     <a href="audit.html" class="nav-item"><span class="nav-icon">📜</span> Audit Log</a>
     <a href="query-analyzer.html" class="nav-item"><span class="nav-icon">⚡</span> Query Analyzer</a>
+    <a href="user-management.html" class="nav-item"><span class="nav-icon">👥</span> User Management</a>
     
     <div class="nav-label" >Documentation</div>
     <a href="queries.html" class="nav-item"><span class="nav-icon">🔍</span> SQL Queries</a>
@@ -458,6 +471,32 @@
 
       <button class="btn" onclick="addCustomer()">Register Customer</button>
     </div>
+
+    <!-- BUG-12 FIX: Customer List Table -->
+    <div style="margin-top: 48px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h2 style="font-family:'Cormorant Garamond',serif; font-size:24px; font-weight:300;">Registered Customers</h2>
+        <button class="btn" style="width:auto; padding:10px 20px; font-size:11px;" onclick="loadCustomers()">🔄 Refresh</button>
+      </div>
+      <div style="background:var(--navy-3); border:1px solid var(--border); border-radius:4px; overflow-x:auto; position:relative;">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),transparent);"></div>
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <thead>
+            <tr>
+              <th style="padding:14px 16px; text-align:left; color:var(--gold-light); font-size:11px; letter-spacing:0.1em; text-transform:uppercase; background:rgba(201,168,76,0.02); border-bottom:1px solid rgba(201,168,76,0.1);">#ID</th>
+              <th style="padding:14px 16px; text-align:left; color:var(--gold-light); font-size:11px; letter-spacing:0.1em; text-transform:uppercase; background:rgba(201,168,76,0.02); border-bottom:1px solid rgba(201,168,76,0.1);">Name</th>
+              <th style="padding:14px 16px; text-align:left; color:var(--gold-light); font-size:11px; letter-spacing:0.1em; text-transform:uppercase; background:rgba(201,168,76,0.02); border-bottom:1px solid rgba(201,168,76,0.1);">Email</th>
+              <th style="padding:14px 16px; text-align:left; color:var(--gold-light); font-size:11px; letter-spacing:0.1em; text-transform:uppercase; background:rgba(201,168,76,0.02); border-bottom:1px solid rgba(201,168,76,0.1);">Phone</th>
+              <th style="padding:14px 16px; text-align:left; color:var(--gold-light); font-size:11px; letter-spacing:0.1em; text-transform:uppercase; background:rgba(201,168,76,0.02); border-bottom:1px solid rgba(201,168,76,0.1);">Address</th>
+              <th style="padding:14px 16px; text-align:left; color:var(--gold-light); font-size:11px; letter-spacing:0.1em; text-transform:uppercase; background:rgba(201,168,76,0.02); border-bottom:1px solid rgba(201,168,76,0.1);">Registered</th>
+            </tr>
+          </thead>
+          <tbody id="customerBody">
+            <tr><td colspan="6" style="text-align:center; padding:24px; color:var(--muted);">Loading customers...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </main>
 
   <div class="toast" id="toast">✓ Customer registered successfully</div>
@@ -496,7 +535,8 @@
           btn.style.opacity = '1';
           showToast('Customer registered successfully');
           document.querySelectorAll('input').forEach(i => i.value = '');
-          loadStats(); // Update dashboard metric without refreshing
+          loadStats();
+          loadCustomers(); // BUG-12 FIX: Refresh customer list after add
         })
         .catch(() => {
           btn.textContent = 'Register Customer';
@@ -515,7 +555,35 @@
         })
         .catch(err => console.error("Could not load stats", err));
     }
+
+    // BUG-12 FIX: Load customer list
+    function loadCustomers() {
+      fetch('/customers')
+        .then(r => r.json())
+        .then(data => {
+          const tbody = document.getElementById('customerBody');
+          if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted);">No customers registered yet.</td></tr>';
+            return;
+          }
+          tbody.innerHTML = data.map(c => `
+            <tr style="border-bottom:1px solid rgba(201,168,76,0.07);">
+              <td style="padding:12px 16px; color:var(--gold);">C${c.customer_id}</td>
+              <td style="padding:12px 16px; color:var(--text); font-weight:500;">${c.name || '—'}</td>
+              <td style="padding:12px 16px; color:var(--muted);">${c.email || '—'}</td>
+              <td style="padding:12px 16px; color:var(--muted);">${c.phone || '—'}</td>
+              <td style="padding:12px 16px; color:var(--muted); font-size:12px;">${c.address || '—'}</td>
+              <td style="padding:12px 16px; color:var(--muted); font-size:12px;">${c.created_at ? new Date(c.created_at).toLocaleDateString('en-IN') : '—'}</td>
+            </tr>
+          `).join('');
+        })
+        .catch(() => {
+          document.getElementById('customerBody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted);">Failed to load customers.</td></tr>';
+        });
+    }
+
     loadStats();
+    loadCustomers();
   </script>
 </body>
 

@@ -50,6 +50,14 @@
   .demo-right { background: rgba(76,175,144,0.05); }
   .demo-metric { font-size: 32px; font-weight: bold; margin: 10px 0; font-family:'Cormorant Garamond', serif;}
 
+
+  /* Hide scrollbars globally */
+  html, body { overflow: hidden; }
+  * { -ms-overflow-style: none; scrollbar-width: none; }
+  *::-webkit-scrollbar { display: none; }
+  .main { overflow-y: auto; height: 100vh; }
+  .sidebar { overflow-y: auto; }
+
 </style>
 </head>
 <body>

@@ -5,9 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NexBank — Teller Portal</title>
 <script>
-  if (localStorage.getItem('userRole') !== 'teller') {
+  const _r = localStorage.getItem('userRole');
+  if (_r !== 'teller' && _r !== 'admin') {
     window.location.href = 'index.html';
   }
+  // BUG-21 FIX: Verify server-side session
+  fetch('/me').then(r => { if(!r.ok) { localStorage.removeItem('userRole'); window.location.href='index.html'; }}).catch(()=>{});
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -193,24 +196,20 @@
     .sidebar { display: none; }
     .layout { grid-template-columns: 1fr; }
   }
+
+  /* Hide scrollbars globally */
+  html, body { overflow: hidden; }
+  * { -ms-overflow-style: none; scrollbar-width: none; }
+  *::-webkit-scrollbar { display: none; }
+  .main { overflow-y: auto; height: 100vh; }
+  .sidebar { overflow-y: auto; }
+
 </style>
 </head>
 <body>
 
-<aside class="sidebar">
-  <div class="logo-mark">
-    <div class="logo-icon">N</div>
-    <span class="logo-name">NexBank</span>
-  </div>
-  <nav class="nav-section">
-    <div class="nav-label">Teller Portal</div>
-    <a href="#" class="nav-item active"><span class="nav-icon">🏦</span> Create Account</a>
-    <a href="#" onclick="localStorage.removeItem('userRole'); window.location.href='index.html';" class="nav-item"><span class="nav-icon">↩</span> Sign Out</a>
-  </nav>
-  <div class="sidebar-footer">
-    <div class="role-badge">Teller</div>
-    <div>Account management access</div>
-  </div>
+<aside class="sidebar" id="sidebar-container">
+  <!-- Dynamic Sidebar via JS -->
 </aside>
 
 <main class="main">
@@ -228,8 +227,12 @@
       <div class="card-sub">Link a new account to an existing customer ID.</div>
 
       <div class="field">
-        <label>Customer ID</label>
-        <input id="cid" type="number" placeholder="e.g. 1001">
+        <label>Customer Selection *</label>
+        <div class="select-wrap">
+          <select id="cid">
+            <option value="">Loading customers...</option>
+          </select>
+        </div>
       </div>
       <div class="field">
         <label>Account Type</label>
@@ -266,6 +269,52 @@
 <div class="toast" id="toast"></div>
 
 <script>
+function renderSidebar() {
+  const container = document.getElementById('sidebar-container');
+  const role = localStorage.getItem('userRole');
+  const isAdm = role === 'admin';
+  
+  if (!container) return;
+  
+  container.innerHTML = `
+    <div class="logo-mark">
+      <div class="logo-icon">N</div>
+      <span class="logo-name">NexBank</span>
+    </div>
+    <nav class="nav-section">
+      <div class="nav-label">${isAdm ? 'Admin Portal' : 'Teller Portal'}</div>
+      ${isAdm ? '<a href="admin.html" class="nav-item"><span class="nav-icon">👤</span> Dashboard / Admin</a>' : ''}
+      <a href="teller.html" class="nav-item active"><span class="nav-icon">🏦</span> Open Account</a>
+      <a href="customer.html" class="nav-item"><span class="nav-icon">💳</span> Transactions</a>
+      ${isAdm ? '<a href="audit.html" class="nav-item"><span class="nav-icon">📜</span> Audit Log</a>' : ''}
+      ${isAdm ? '<a href="query-analyzer.html" class="nav-item"><span class="nav-icon">⚡</span> Query Analyzer</a>' : ''}
+      <div class="nav-label">Documentation</div>
+      <a href="queries.html" class="nav-item"><span class="nav-icon">🔍</span> SQL Queries</a>
+      <a href="about.html" class="nav-item"><span class="nav-icon">📄</span> About</a>
+      <a href="#" onclick="localStorage.removeItem('userRole'); window.location.href='index.html';" class="nav-item"><span class="nav-icon">↩</span> Sign Out</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="role-badge">${isAdm ? 'Administrator' : 'Teller'}</div>
+      <div>${isAdm ? 'Full system access' : 'Account management access'}</div>
+    </div>
+  `;
+}
+
+renderSidebar();
+
+async function init() {
+  try {
+    const res = await fetch('/api/customers');
+    const customers = await res.json();
+    const select = document.getElementById('cid');
+    select.innerHTML = '<option value="">Select customer...</option>' + 
+      customers.map(c => `<option value="${c.customer_id}">${c.customer_id} - ${c.name}</option>`).join('');
+  } catch (e) {
+    document.getElementById('cid').innerHTML = '<option value="">Error loading customers</option>';
+  }
+}
+init();
+
 function showToast(msg, isError) {
   const t = document.getElementById('toast');
   t.textContent = (isError ? '✗ ' : '✓ ') + msg;

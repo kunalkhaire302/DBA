@@ -249,7 +249,15 @@
       position: sticky;
       top: 0;
     }
-  </style>
+  
+  /* Hide scrollbars globally */
+  html, body { overflow: hidden; }
+  * { -ms-overflow-style: none; scrollbar-width: none; }
+  *::-webkit-scrollbar { display: none; }
+  .main { overflow-y: auto; height: 100vh; }
+  .sidebar { overflow-y: auto; }
+
+</style>
 </head>
 
 <body>

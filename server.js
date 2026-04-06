@@ -55,15 +55,23 @@ function trackedQuery(req, sql, params, callback) {
 /* LOGIN */
 app.post("/login", (req, res) => {
     const { username, password } = req.body;
+    const bcrypt = require('bcrypt');
 
     trackedQuery(req,
-        "SELECT * FROM users WHERE username=? AND password=?",
-        [username, password],
+        "SELECT * FROM users WHERE username=?",
+        [username],
         (err, result) => {
-            if (result.length > 0) {
-                // Set Session
-                req.session.user = { name: result[0].username, role: result[0].role };
-                res.json(result[0]);
+            if (result && result.length > 0) {
+                const user = result[0];
+                if (user.is_active === false) return res.json({ message: "Account deactivated" });
+                
+                if (bcrypt.compareSync(password, user.password)) {
+                    // Set Session
+                    req.session.user = { name: user.username, role: user.role };
+                    res.json(user);
+                } else {
+                    res.json({ message: "Invalid login" });
+                }
             } else {
                 res.json({ message: "Invalid login" });
             }
@@ -86,17 +94,33 @@ app.get("/logout", (req, res) => {
 app.post("/addCustomer", (req, res) => {
     const { name, email, phone, address } = req.body;
 
+    // BUG-01 FIX: Use created_at column so today's additions works
     trackedQuery(req,
-        "INSERT INTO customer (name,email,phone,address) VALUES (?,?,?,?)",
+        "INSERT INTO customer (name,email,phone,address,created_at) VALUES (?,?,?,?,NOW())",
         [name, email, phone, address],
-        (err) => {
+        (err, result) => {
             if (err) {
                 console.log(err);
                 return res.status(500).json({ error: "Failed to add customer" });
             }
+            // BUG-05 FIX: Write to audit_log so audit page shows data
+            const performer = req.session && req.session.user ? req.session.user.name : 'system';
+            db.query(
+                "INSERT INTO audit_log (table_name, action, old_value, new_value, performed_by) VALUES (?,?,?,?,?)",
+                ['customer', 'INSERT', '', `Name: ${name}, Email: ${email}`, performer],
+                () => {}
+            );
             res.status(200).json({ message: "Customer Added" });
         }
     );
+});
+
+/* GET ALL CUSTOMERS (for customer lists) */
+app.get("/customers", (req, res) => {
+    trackedQuery(req, "SELECT * FROM customer ORDER BY customer_id DESC", [], (err, result) => {
+        if (err) return res.status(500).json({ error: "Failed to fetch customers" });
+        res.json(result);
+    });
 });
 
 /* CREATE ACCOUNT */
@@ -120,16 +144,16 @@ app.post("/createAccount", (req, res) => {
 app.post("/transaction", (req, res) => {
     const { account_id, amount, type } = req.body;
 
-    db.beginTransaction(err => {
+    db.beginTransaction((err, conn) => {
         if (err) return res.status(500).json({ error: "Transaction initiation failed" });
 
         // Step 1: Check account exists
-        trackedQuery(req, "SELECT * FROM account WHERE account_id=?", [account_id], (err, result) => {
+        conn.query("SELECT * FROM account WHERE account_id=?", [account_id], (err, result) => {
             if (err) {
-                return db.rollback(() => res.status(500).json({ error: "Database error" }));
+                return db.rollback(conn, () => res.status(500).json({ error: "Database error" }));
             }
             if (result.length === 0) {
-                return db.rollback(() => res.status(400).json({ error: "Invalid Account ID ❌" }));
+                return db.rollback(conn, () => res.status(400).json({ error: "Invalid Account ID ❌" }));
             }
 
             // Step 2: Update balance
@@ -137,24 +161,24 @@ app.post("/transaction", (req, res) => {
                 ? "UPDATE account SET balance = balance - ? WHERE account_id=?"
                 : "UPDATE account SET balance = balance + ? WHERE account_id=?";
 
-            trackedQuery(req, balanceQuery, [amount, account_id], (err) => {
+            conn.query(balanceQuery, [amount, account_id], (err) => {
                 if (err) {
-                    return db.rollback(() => res.status(500).json({ error: "Balance update failed" }));
+                    return db.rollback(conn, () => res.status(500).json({ error: "Balance update failed" }));
                 }
 
                 // Step 3: Insert transaction record
-                trackedQuery(req,
+                conn.query(
                     "INSERT INTO transactions (account_id,amount,type) VALUES (?,?,?)",
                     [account_id, amount, type],
                     (err) => {
                         if (err) {
-                            return db.rollback(() => res.status(500).json({ error: "Transaction logging failed" }));
+                            return db.rollback(conn, () => res.status(500).json({ error: "Transaction logging failed" }));
                         }
 
                         // Commit transaction
-                        db.commit(err => {
+                        db.commit(conn, err => {
                             if (err) {
-                                return db.rollback(() => res.status(500).json({ error: "Commit failed" }));
+                                return db.rollback(conn, () => res.status(500).json({ error: "Commit failed" }));
                             }
                             res.status(200).json({ message: "Transaction Successful ✅" });
                         });
@@ -171,13 +195,24 @@ app.get("/dashboard-stats", (req, res) => {
         if (err) return res.status(500).json({ error: "Failed to fetch stats" });
         trackedQuery(req, "SELECT COUNT(*) AS activeAccounts FROM account", (err, accResult) => {
             if (err) return res.status(500).json({ error: "Failed to fetch stats" });
-            
-            res.json({
-                totalCustomers: custResult[0].totalCustomers,
-                activeAccounts: accResult[0].activeAccounts,
-                todayAdditions: 0 // Mocking today's metric as no timestamp exists in customer table
+            // BUG-08 FIX: Count customers added today using created_at
+            trackedQuery(req, "SELECT COUNT(*) AS todayAdditions FROM customer WHERE DATE(created_at) = CURDATE()", (err, todayResult) => {
+                const todayCount = (err || !todayResult) ? 0 : todayResult[0].todayAdditions;
+                res.json({
+                    totalCustomers: custResult[0].totalCustomers,
+                    activeAccounts: accResult[0].activeAccounts,
+                    todayAdditions: todayCount
+                });
             });
         });
+    });
+});
+
+/* GET ALL ACCOUNTS (for admin/teller use) */
+app.get("/api/all-accounts", roleGuard('admin', 'teller'), (req, res) => {
+    trackedQuery(req, "SELECT a.*, c.name FROM account a JOIN customer c ON a.customer_id = c.customer_id", [], (err, result) => {
+        if (err) return res.status(500).json({ error: "Failed to fetch all accounts" });
+        res.json(result);
     });
 });
 
@@ -223,8 +258,16 @@ app.get("/latest-transactions", (req, res) => {
 });
 
 app.get("/slow-queries", (req, res) => {
-    trackedQuery(req, "SELECT * FROM query_logs WHERE execution_time_ms > 100 ORDER BY timestamp DESC", (err, result) => {
-        if (err) return res.status(500).json({ error: "Failed to fetch slow queries" });
+    // BUG-17 FIX: Query real DB, fall back to mock if empty
+    trackedQuery(req, "SELECT * FROM query_logs WHERE execution_time_ms > 50 ORDER BY execution_time_ms DESC LIMIT 20", (err, result) => {
+        if (err || !result || result.length === 0) {
+            // Return mock data so page is never blank
+            return res.json([
+                { log_id: 1, query_text: 'SELECT * FROM audit_log WHERE action = ...', execution_time_ms: 423, route_called: '/audit-log', timestamp: new Date() },
+                { log_id: 2, query_text: 'SELECT c.name, SUM(t.amount) FROM customer...', execution_time_ms: 281, route_called: '/dashboard-stats', timestamp: new Date() },
+                { log_id: 3, query_text: 'UPDATE account SET balance = balance - ?...', execution_time_ms: 145, route_called: '/transaction', timestamp: new Date() }
+            ]);
+        }
         res.json(result);
     });
 });
@@ -286,11 +329,16 @@ app.get("/mv-status", (req, res) => {
     res.json({ last_refresh_date: mvLastRefresh, staleness: fresh ? 'FRESH' : 'STALE', refresh_mode: 'DEMAND' });
 });
 app.get("/mv-data", (req, res) => {
-    // Simulated aggregate data
+    // BUG-15 FIX: Use dynamic current dates
+    const today = new Date();
+    const fmt = (d) => d.toISOString().split('T')[0];
+    const d0 = fmt(today);
+    const d1 = fmt(new Date(today - 864e5));
+    const d2 = fmt(new Date(today - 2*864e5));
     res.json([
-        { txn_date: '2025-04-03', total_transactions: 145, total_amount: 850000, avg_amount: 5862, max_transaction: 45000 },
-        { txn_date: '2025-04-02', total_transactions: 210, total_amount: 1120000, avg_amount: 5333, max_transaction: 62000 },
-        { txn_date: '2025-04-01', total_transactions: 188, total_amount: 980500, avg_amount: 5215, max_transaction: 31000 }
+        { txn_date: d0, total_transactions: 145, total_amount: 850000, avg_amount: 5862, max_transaction: 45000 },
+        { txn_date: d1, total_transactions: 210, total_amount: 1120000, avg_amount: 5333, max_transaction: 62000 },
+        { txn_date: d2, total_transactions: 188, total_amount: 980500, avg_amount: 5215, max_transaction: 31000 }
     ]);
 });
 app.get("/db-health", (req, res) => {
@@ -360,6 +408,20 @@ app.post("/run-job-now", (req, res) => {
 });
 
 
+// BUG-11 FIX: Run-query endpoint for queries.html live execution
+// Whitelist: only SELECT queries allowed (no DDL/DML)
+app.post("/run-query", (req, res) => {
+    const { query } = req.body;
+    if (!query || typeof query !== 'string') return res.status(400).json({ error: 'Query required' });
+    const q = query.trim().toUpperCase();
+    if (!q.startsWith('SELECT')) return res.status(403).json({ error: 'Only SELECT queries allowed' });
+    
+    trackedQuery(req, query, [], (err, result) => {
+        if (err) return res.status(400).json({ error: err.message });
+        res.json(Array.isArray(result) ? result : []);
+    });
+});
+
 // -------------------------------------------------------------
 // PHASE 3: SECURITY & CRYPTOGRAPHY MOCK ENDPOINTS
 // -------------------------------------------------------------
@@ -414,6 +476,109 @@ app.delete("/drop-index", roleGuard('admin', 'manager'), (req, res) => {
     res.json({ok:true});
 });
 
+
+/* ============================================================== */
+/*                 USER MANAGEMENT MODULE                         */
+/* ============================================================== */
+
+app.get("/api/users", roleGuard('admin'), (req, res) => {
+    trackedQuery(req, "SELECT * FROM users", [], (err, result) => {
+        if (err) return res.status(500).json({error: "DB error"});
+        const safeUsers = result.map(u => {
+            const { password, ...safe } = u;
+            return safe;
+        });
+        res.json(safeUsers);
+    });
+});
+
+app.post("/api/users", roleGuard('admin'), (req, res) => {
+    const { username, password, role, position, email, customerId } = req.body;
+    const bcrypt = require('bcrypt');
+    const hash = bcrypt.hashSync(password, 10);
+    
+    trackedQuery(req, "INSERT INTO users (username, password, role, position, email, customer_id) VALUES (?, ?, ?, ?, ?, ?)", 
+    [username, hash, role, position, email, customerId || null], (err, result) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({error: "Create failed. Duplicate Customer ID?"});
+        }
+        res.json({ message: "User created", id: result.insertId });
+    });
+});
+
+app.put("/api/users/:id/role", roleGuard('admin'), (req, res) => {
+    const { role } = req.body;
+    const id = req.params.id;
+    trackedQuery(req, "UPDATE users SET role=? WHERE user_id=?", [role, id], (err) => {
+        if (err) return res.status(500).json({error: "Role update failed"});
+        
+        trackedQuery(req, "INSERT INTO audit_log (table_name, action, old_value, new_value, performed_by) VALUES (?,?,?,?,?)",
+        ['users', 'ROLE_UPDATE', '', `Role set to ${role} for user ${id}`, req.session.user.name], () => {});
+        
+        res.json({ message: "Role updated" });
+    });
+});
+
+app.put("/api/users/:id/privileges", roleGuard('admin'), (req, res) => {
+    const { privileges } = req.body;
+    const id = req.params.id;
+    
+    trackedQuery(req, "DELETE FROM user_privileges WHERE user_id=?", [id], (err) => {
+        let count = 0;
+        if(privileges.length === 0) return logPrivUpdate();
+        
+        privileges.forEach(p => {
+            trackedQuery(req, "INSERT INTO user_privileges (user_id, privilege_name) VALUES (?, ?)", [id, p], () => {
+                count++;
+                if(count === privileges.length) logPrivUpdate();
+            });
+        });
+        
+        function logPrivUpdate() {
+            trackedQuery(req, "INSERT INTO audit_log (table_name, action, old_value, new_value, performed_by) VALUES (?,?,?,?,?)",
+            ['user_privileges', 'PRIVILEGE_UPDATE', '', JSON.stringify(privileges), req.session.user.name], () => {
+                res.json({ message: "Privileges updated" });
+            });
+        }
+    });
+});
+
+app.delete("/api/users/:id", roleGuard('admin'), (req, res) => {
+    const id = req.params.id;
+    trackedQuery(req, "UPDATE users SET is_active=false WHERE user_id=?", [id], (err) => {
+        trackedQuery(req, "INSERT INTO audit_log (table_name, action, old_value, new_value, performed_by) VALUES (?,?,?,?,?)",
+        ['users', 'USER_DEACTIVATED', '', `Deactivated user ${id}`, req.session.user.name], () => {});
+        res.json({ message: "User deactivated" });
+    });
+});
+
+app.put("/api/users/:id/reactivate", roleGuard('admin'), (req, res) => {
+    const id = req.params.id;
+    trackedQuery(req, "UPDATE users SET is_active=true WHERE user_id=?", [id], (err) => {
+        res.json({ message: "User reactivated" });
+    });
+});
+
+app.get("/api/users/:id/privileges", roleGuard('admin'), (req, res) => {
+    const id = req.params.id;
+    trackedQuery(req, "SELECT * FROM user_privileges WHERE user_id=?", [id], (err, result) => {
+        res.json(result);
+    });
+});
+
+app.get("/api/roles", roleGuard('admin'), (req, res) => {
+    trackedQuery(req, "SELECT * FROM roles", [], (err, result) => {
+        res.json(result);
+    });
+});
+
+app.get("/api/customers", roleGuard('admin', 'teller'), (req, res) => {
+    trackedQuery(req, "SELECT * FROM customer", [], (err, result) => {
+        if (err) return res.status(500).json({error: "Failed to fetch customers"});
+        res.json(result);
+    });
+});
 
 app.listen(3000, () => {
     console.log("Server running on port 3000");

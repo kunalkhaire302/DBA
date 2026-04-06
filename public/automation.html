@@ -43,6 +43,14 @@
   button:hover { background: var(--gold); color: var(--navy); }
   .btn-run { background: rgba(201,168,76,0.1); border-color: rgba(201,168,76,0.5);}
 
+
+  /* Hide scrollbars globally */
+  html, body { overflow: hidden; }
+  * { -ms-overflow-style: none; scrollbar-width: none; }
+  *::-webkit-scrollbar { display: none; }
+  .main { overflow-y: auto; height: 100vh; }
+  .sidebar { overflow-y: auto; }
+
 </style>
 </head>
 <body>
