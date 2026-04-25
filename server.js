@@ -10,12 +10,19 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static("public"));
 
+// Trust Render's reverse proxy so HTTPS is detected correctly
+// Required for session cookies with secure:true to work on Render
+app.set('trust proxy', 1);
+
 const isProduction = process.env.NODE_ENV === 'production';
 app.use(session({
     secret: process.env.SESSION_SECRET || 'nexbank-secure-session-key',
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: isProduction } // true on Render (HTTPS), false for localhost
+    cookie: {
+        secure: isProduction,   // true on Render (HTTPS), false for localhost
+        sameSite: isProduction ? 'none' : 'lax'  // required for cross-origin cookies on Render
+    }
 }));
 
 function roleGuard(...roles) {
