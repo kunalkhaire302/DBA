@@ -4,12 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NexBank — Teller Portal</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <script>
   const _r = localStorage.getItem('userRole');
   if (_r !== 'teller' && _r !== 'admin') {
     window.location.href = 'index.html';
   }
-  // BUG-21 FIX: Verify server-side session
+  // Verify server-side session
   fetch('/me').then(r => { if(!r.ok) { localStorage.removeItem('userRole'); window.location.href='index.html'; }}).catch(()=>{});
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -26,6 +27,9 @@
     --text: #E8E4D9;
     --muted: rgba(232,228,217,0.45);
     --success: #4CAF90;
+    --danger: #E05555;
+    --deposit-bg: rgba(76,175,144,0.08);
+    --withdraw-bg: rgba(224,85,85,0.08);
   }
 
   body {
@@ -165,6 +169,33 @@
   .btn:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 8px 28px rgba(201,168,76,0.3); }
   .btn:active { transform: translateY(0); }
 
+  /* Type toggle */
+  .type-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px; }
+  .toggle-opt { padding: 13px; border: 1px solid rgba(201,168,76,0.15); border-radius: 3px; text-align: center; cursor: pointer; font-size: 13px; color: var(--muted); transition: all 0.2s; user-select: none; letter-spacing: 0.04em; }
+  .toggle-opt.active-deposit { background: var(--deposit-bg); border-color: rgba(76,175,144,0.4); color: var(--success); }
+  .toggle-opt.active-withdraw { background: var(--withdraw-bg); border-color: rgba(224,85,85,0.4); color: var(--danger); }
+
+  /* History */
+  .history-card { background: var(--navy-2); border: 1px solid var(--border); border-radius: 4px; padding: 28px 32px; position: relative; }
+  .history-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+  .history-title { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 400; margin-bottom: 20px; }
+
+  .txn-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(201,168,76,0.06); animation: slideIn 0.3s ease both; }
+  @keyframes slideIn { from { opacity:0; transform:translateX(-10px); } to { opacity:1; transform:translateX(0); } }
+  .txn-item:last-child { border-bottom: none; }
+  .txn-left { display: flex; align-items: center; gap: 12px; }
+  .txn-icon { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .txn-icon.dep { background: rgba(76,175,144,0.12); }
+  .txn-icon.wit { background: rgba(224,85,85,0.12); }
+  .txn-type { font-size: 13px; font-weight: 500; color: var(--text); text-transform: capitalize; }
+  .txn-acc { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .txn-amount { font-family: 'Cormorant Garamond', serif; font-size: 20px; }
+  .txn-amount.dep { color: var(--success); }
+  .txn-amount.wit { color: var(--danger); }
+
+  .empty-state { text-align: center; padding: 32px; color: var(--muted); font-size: 13px; }
+  .empty-state div { font-size: 28px; margin-bottom: 8px; }
+
   /* Info panel */
   .info-panel {
     background: rgba(201,168,76,0.04);
@@ -264,6 +295,49 @@
       </div>
     </div>
   </div>
+
+  <div class="layout" style="margin-top: 28px;">
+    <!-- Transaction Form -->
+    <div class="card">
+      <div class="card-title">New Transaction</div>
+      <div class="card-sub">Enter account details and transaction amount.</div>
+
+      <div class="field">
+        <label>Select Account</label>
+        <div class="select-wrap">
+          <select id="aid" onchange="loadHistory()">
+            <option value="">Select an account</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Amount (₹)</label>
+        <input id="amt" type="number" placeholder="Enter amount">
+      </div>
+
+      <div style="margin-bottom:22px;">
+        <label style="display:block; margin-bottom:10px;">Transaction Type</label>
+        <div class="type-toggle">
+          <div class="toggle-opt active-deposit" id="opt-dep" onclick="selectType('deposit')">⬆ Deposit</div>
+          <div class="toggle-opt" id="opt-wit" onclick="selectType('withdraw')">⬇ Withdraw</div>
+        </div>
+        <input type="hidden" id="txn-type" value="deposit">
+      </div>
+
+      <button class="btn" id="txn-btn" onclick="txn()">Submit Transaction</button>
+    </div>
+
+    <!-- Transaction History -->
+    <div class="history-card">
+      <div class="history-title">Recent Activity</div>
+      <div id="history">
+        <div class="empty-state">
+          <div>💳</div>
+          <div>No transactions yet this session</div>
+        </div>
+      </div>
+    </div>
+  </div>
 </main>
 
 <div class="toast" id="toast"></div>
@@ -285,13 +359,9 @@ function renderSidebar() {
       <div class="nav-label">${isAdm ? 'Admin Portal' : 'Teller Portal'}</div>
       ${isAdm ? '<a href="admin.html" class="nav-item"><span class="nav-icon">👤</span> Dashboard / Admin</a>' : ''}
       <a href="teller.html" class="nav-item active"><span class="nav-icon">🏦</span> Open Account</a>
-      <a href="customer.html" class="nav-item"><span class="nav-icon">💳</span> Transactions</a>
       ${isAdm ? '<a href="audit.html" class="nav-item"><span class="nav-icon">📜</span> Audit Log</a>' : ''}
       ${isAdm ? '<a href="query-analyzer.html" class="nav-item"><span class="nav-icon">⚡</span> Query Analyzer</a>' : ''}
-      <div class="nav-label">Documentation</div>
-      <a href="queries.html" class="nav-item"><span class="nav-icon">🔍</span> SQL Queries</a>
-      <a href="about.html" class="nav-item"><span class="nav-icon">📄</span> About</a>
-      <a href="#" onclick="localStorage.removeItem('userRole'); window.location.href='index.html';" class="nav-item"><span class="nav-icon">↩</span> Sign Out</a>
+      <a href="#" onclick="fetch('/logout').then(()=>{localStorage.removeItem('userRole'); window.location.href='index.html';})" class="nav-item"><span class="nav-icon">↩</span> Sign Out</a>
     </nav>
     <div class="sidebar-footer">
       <div class="role-badge">${isAdm ? 'Administrator' : 'Teller'}</div>
@@ -314,6 +384,94 @@ async function init() {
   }
 }
 init();
+loadAccounts();
+
+const history = [];
+
+function selectType(type) {
+  document.getElementById('txn-type').value = type;
+  const dep = document.getElementById('opt-dep');
+  const wit = document.getElementById('opt-wit');
+  dep.className = 'toggle-opt ' + (type === 'deposit' ? 'active-deposit' : '');
+  wit.className = 'toggle-opt ' + (type === 'withdraw' ? 'active-withdraw' : '');
+}
+
+function renderHistory() {
+  const el = document.getElementById('history');
+  if (history.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div>💳</div><div>No transactions yet this session</div></div>';
+    return;
+  }
+  el.innerHTML = history.slice().reverse().map((t, i) => `
+    <div class="txn-item" style="animation-delay:${i * 0.06}s">
+      <div class="txn-left">
+        <div class="txn-icon ${t.type === 'deposit' ? 'dep' : 'wit'}">${t.type === 'deposit' ? '⬆' : '⬇'}</div>
+        <div class="txn-info">
+          <div class="txn-type">${t.type}</div>
+          <div class="txn-acc">Account #${t.acc}</div>
+        </div>
+      </div>
+      <div class="txn-amount ${t.type === 'deposit' ? 'dep' : 'wit'}">${t.type === 'deposit' ? '+' : '-'}₹${Number(t.amt).toLocaleString('en-IN')}</div>
+    </div>
+  `).join('');
+}
+
+function txn() {
+  const btn = document.getElementById('txn-btn');
+  const acc = document.getElementById("aid").value;
+  const amt = document.getElementById("amt").value;
+  const type = document.getElementById("txn-type").value;
+
+  if (!acc || !amt) { showToast('Please fill in all fields.', true); return; }
+
+  btn.textContent = 'Processing...'; btn.style.opacity = '0.7';
+
+  fetch("/transaction", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ account_id: acc, amount: amt, type: type })
+  })
+  .then(res => res.json().then(data => ({ status: res.status, ok: res.ok, body: data })))
+  .then(res => {
+    if (!res.ok) throw new Error(res.body.error || "Transaction Failed");
+    btn.textContent = 'Submit Transaction'; btn.style.opacity = '1';
+    showToast('Transaction completed successfully');
+    document.getElementById('amt').value = '';
+    loadHistory(); 
+  })
+  .catch(err => {
+    btn.textContent = 'Submit Transaction'; btn.style.opacity = '1';
+    showToast(err.message, true);
+  });
+}
+
+function loadHistory() {
+  const acc = document.getElementById("aid").value;
+  if (!acc) return;
+  fetch(`/history/${acc}`)
+    .then(res => res.json())
+    .then(data => {
+      history.length = 0;
+      data.forEach(t => history.push({ acc: t.account_id, amt: t.amount, type: t.type }));
+      renderHistory();
+      loadAccounts(true);
+    });
+}
+
+async function loadAccounts(retainSelection = false) {
+  const select = document.getElementById('aid');
+  if (!select) return;
+  const val = select.value;
+
+  const res = await fetch('/api/all-accounts');
+  const data = await res.json();
+  select.innerHTML = '<option value="">Select individual account...</option>';
+  data.forEach(acc => {
+    select.innerHTML += `<option value="${acc.account_id}">ID #${acc.account_id} - ${acc.name} (₹${Number(acc.balance).toLocaleString('en-IN')})</option>`;
+  });
+  
+  if (retainSelection && val) select.value = val;
+}
 
 function showToast(msg, isError) {
   const t = document.getElementById('toast');
@@ -325,31 +483,40 @@ function showToast(msg, isError) {
 }
 
 function createAcc() {
-  const btn = document.querySelector('.btn');
+  const cid = document.getElementById('cid').value;
+  const type = document.getElementById('type').value;
+  const bal = document.getElementById('bal').value;
+
+  // BUG-FIX: Validate fields on the client side
+  if (!cid) { showToast('Please select a customer.', true); return; }
+  if (!type) { showToast('Please select an account type.', true); return; }
+  if (!bal || parseFloat(bal) < 0) { showToast('Please enter a valid initial balance.', true); return; }
+
+  const btn = document.querySelector('.card .btn');
   btn.textContent = 'Processing...'; btn.style.opacity = '0.7';
 
   fetch("/createAccount", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
-      customer_id: document.getElementById("cid").value,
-      account_type: document.getElementById("type").value,
-      balance: document.getElementById("bal").value
+      customer_id: cid,
+      account_type: type,
+      balance: bal
     })
   })
+  .then(res => res.json().then(data => ({ ok: res.ok, body: data })))
   .then(res => {
-    if (!res.ok) throw new Error("Server error");
-    return res.json();
-  })
-  .then(data => {
     btn.textContent = 'Open Account'; btn.style.opacity = '1';
+    if (!res.ok) throw new Error(res.body.error || 'Server error');
     showToast('Account opened successfully');
-    document.querySelectorAll('input').forEach(i => i.value = '');
-    document.getElementById('type').value = 'savings';
+    document.getElementById('bal').value = '';
+    document.getElementById('type').value = '';
+    document.getElementById('cid').value = '';
+    loadAccounts(); // Refresh account dropdown
   })
-  .catch(() => {
+  .catch((err) => {
     btn.textContent = 'Open Account'; btn.style.opacity = '1';
-    showToast('Failed to open account. Check ID.', true);
+    showToast(err.message || 'Failed to open account.', true);
   });
 }
 </script>

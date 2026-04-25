@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NexBank — Oracle Views Dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -54,14 +55,35 @@
 
 <aside class="sidebar">
   <div class="logo-mark"><div class="logo-icon">N</div><span class="logo-name">NexBank</span></div>
-  <nav class="nav-section">
-    <a href="admin.html" class="nav-item">📊 Dashboard</a>
-    <a href="views.html" class="nav-item active">👁️ Oracle Views</a>
-    <a href="dashboard.html" class="nav-item">⚙️ Materialized Views</a>
-    <a href="performance.html" class="nav-item">🚀 Explain Plan</a>
-    <a href="automation.html" class="nav-item">⏱️ Scheduler Jobs</a>
-    <a href="index.html" class="nav-item" >↩ Login</a>
-  </nav>
+    <nav class="nav-section">
+      <div class="nav-label">Admin Portal</div>
+      <a href="admin.html" class="nav-item"><span class="nav-icon">👤</span> Dashboard / Admin</a>
+      <a href="teller.html" class="nav-item"><span class="nav-icon">🏦</span> Open Account</a>
+      <a href="customer.html" class="nav-item"><span class="nav-icon">💳</span> Transactions</a>
+      <a href="audit.html" class="nav-item"><span class="nav-icon">📜</span> Audit Log</a>
+      <a href="query-analyzer.html" class="nav-item"><span class="nav-icon">⚡</span> Query Analyzer</a>
+      <a href="user-management.html" class="nav-item"><span class="nav-icon">👥</span> User Management</a>
+
+      <div class="nav-label">DBA Concepts</div>
+      <a href="views.html" class="nav-item active"><span class="nav-icon">👁️</span> Oracle Views</a>
+      <a href="dashboard.html" class="nav-item"><span class="nav-icon">⚙️</span> Materialized Views</a>
+      <a href="performance.html" class="nav-item"><span class="nav-icon">🚀</span> Explain Plan</a>
+      <a href="automation.html" class="nav-item"><span class="nav-icon">⏱️</span> Scheduler Jobs</a>
+      
+      <div class="nav-label">Security & Auth</div>
+      <a href="privileges.html" class="nav-item"><span class="nav-icon">🛡️</span> Privilege Matrix</a>
+      <a href="security.html" class="nav-item"><span class="nav-icon">🔐</span> Data Encryption</a>
+
+      <div class="nav-label">Documentation</div>
+      <a href="queries.html" class="nav-item"><span class="nav-icon">🔍</span> SQL Queries</a>
+      <a href="er-diagram.html" class="nav-item"><span class="nav-icon">📈</span> ER Diagram</a>
+      <a href="cloud.html" class="nav-item"><span class="nav-icon">☁️</span> Cloud Architecture</a>
+      <a href="about.html" class="nav-item"><span class="nav-icon">📄</span> About / Conclusion</a>
+
+      <a href="#" onclick="fetch('/logout').then(()=>{localStorage.removeItem('userRole'); window.location.href='index.html';})" class="nav-item">
+        <span class="nav-icon">↩</span> Sign Out
+      </a>
+    </nav>
 </aside>
 
 <main class="main">

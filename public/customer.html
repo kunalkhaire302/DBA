@@ -4,9 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NexBank — Customer Portal</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <script>
   const _role = localStorage.getItem('userRole');
-  if (_role !== 'customer' && _role !== 'admin') {
+  if (_role !== 'customer' && _role !== 'admin' && _role !== 'teller') {
     window.location.href = 'index.html';
   }
   // BUG-21 FIX: Verify server-side session
@@ -326,6 +327,7 @@ function txn() {
   const type = document.getElementById("txn-type").value;
 
   if (!acc || !amt) { showToast('Please fill in all fields.', true); return; }
+  if (parseFloat(amt) <= 0) { showToast('Amount must be a positive number.', true); return; }
 
   btn.textContent = 'Processing...'; btn.style.opacity = '0.7';
 
@@ -334,19 +336,17 @@ function txn() {
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ account_id: acc, amount: amt, type: type })
   })
+  .then(res => res.json().then(data => ({ ok: res.ok, body: data })))
   .then(res => {
-    if (!res.ok) throw new Error("Transaction Failed");
-    return res.json();
-  })
-  .then(data => {
     btn.textContent = 'Submit Transaction'; btn.style.opacity = '1';
+    if (!res.ok) throw new Error(res.body.error || 'Transaction Failed');
     showToast('Transaction completed successfully');
     document.getElementById('amt').value = '';
-    loadHistory(); // Refresh ledger
+    loadHistory();
   })
-  .catch(() => {
+  .catch((err) => {
     btn.textContent = 'Submit Transaction'; btn.style.opacity = '1';
-    showToast('Transaction failed. Try again.', true);
+    showToast(err.message || 'Transaction failed. Try again.', true);
   });
 }
 
@@ -369,10 +369,7 @@ function renderSidebar() {
       <a href="customer.html" class="nav-item active"><span class="nav-icon">💳</span> Transactions</a>
       ${isAdm ? '<a href="audit.html" class="nav-item"><span class="nav-icon">📜</span> Audit Log</a>' : ''}
       ${isAdm ? '<a href="query-analyzer.html" class="nav-item"><span class="nav-icon">⚡</span> Query Analyzer</a>' : ''}
-      <div class="nav-label">Documentation</div>
-      <a href="queries.html" class="nav-item"><span class="nav-icon">🔍</span> SQL Queries</a>
-      <a href="about.html" class="nav-item"><span class="nav-icon">📄</span> About</a>
-      <a href="#" onclick="localStorage.removeItem('userRole'); window.location.href='index.html';" class="nav-item"><span class="nav-icon">↩</span> Sign Out</a>
+      <a href="#" onclick="fetch('/logout').then(()=>{localStorage.removeItem('userRole'); window.location.href='index.html';})" class="nav-item"><span class="nav-icon">↩</span> Sign Out</a>
     </nav>
     <div class="sidebar-footer">
       <div class="role-badge">${isAdm ? 'Administrator' : 'Customer'}</div>
@@ -387,7 +384,7 @@ async function loadAccounts(retainSelection = false) {
   if (!select) return;
   const val = select.value;
 
-  if (role === 'admin') {
+  if (role === 'admin' || role === 'teller') {
     const res = await fetch('/api/all-accounts');
     const data = await res.json();
     select.innerHTML = '<option value="">Select individual account...</option>';

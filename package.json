@@ -1,11 +1,11 @@
 {
   "name": "dba_final_project",
   "version": "1.0.0",
-  "main": "db.js",
+  "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
-    "dev": "start http://localhost:3000 && node server.js"
+    "dev": "node server.js"
   },
   "keywords": [],
   "author": "",
@@ -15,6 +15,7 @@
     "bcrypt": "^6.0.0",
     "body-parser": "^2.2.2",
     "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "mysql": "^2.18.1",

@@ -78,9 +78,9 @@ INSERT INTO roles (role_name, description) VALUES
 -- e.g. bcrypt.hashSync('admin123', 10)
 INSERT INTO users (username, password, role, position, email, customer_id)
 VALUES 
-('admin','admin123','admin', 'Head Database Administrator', 'admin@nexbank.com', NULL),
-('teller','teller123','teller', 'Senior Branch Teller', 'teller@nexbank.com', NULL),
-('cust1','cust123','customer', NULL, 'cust1@example.com', @last_cust_id);
+('admin','$2b$10$V6/o2RJ3w6M.FWa3MNwlxulI86wuWvvaXzz6doenKOaAruhmghS.a','admin', 'Head Database Administrator', 'admin@nexbank.com', NULL),
+('teller','$2b$10$oFqiaWPWz9yCo1YkPqZUeeTuEHh5KxSmFZvb75fFsgyalV39Xh.oa','teller', 'Senior Branch Teller', 'teller@nexbank.com', NULL),
+('cust1','$2b$10$qfLcy2eBvLNsUeAvgYx1p.MiUrYYgACVWm45.PibA68BL6OauCpRy','customer', NULL, 'cust1@example.com', @last_cust_id);
 
 -- --------------------------------------------------------------------------
 -- FEATURE 1: AUDIT LOG AND TRIGGERS
@@ -89,7 +89,7 @@ VALUES
 CREATE TABLE audit_log (
     log_id INT PRIMARY KEY AUTO_INCREMENT,
     table_name VARCHAR(50),
-    action VARCHAR(10),
+    action VARCHAR(50),
     old_value TEXT,
     new_value TEXT,
     performed_by VARCHAR(50) DEFAULT 'System_User',

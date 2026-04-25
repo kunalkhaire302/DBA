@@ -10,11 +10,12 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static("public"));
 
+const isProduction = process.env.NODE_ENV === 'production';
 app.use(session({
-    secret: 'nexbank-secure-session-key',
+    secret: process.env.SESSION_SECRET || 'nexbank-secure-session-key',
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false } // false since no HTTPS for localhost
+    cookie: { secure: isProduction } // true on Render (HTTPS), false for localhost
 }));
 
 function roleGuard(...roles) {
@@ -63,12 +64,14 @@ app.post("/login", (req, res) => {
         (err, result) => {
             if (result && result.length > 0) {
                 const user = result[0];
-                if (user.is_active === false) return res.json({ message: "Account deactivated" });
+                if (user.is_active === false || user.is_active === 0) return res.json({ message: "Account deactivated" });
                 
                 if (bcrypt.compareSync(password, user.password)) {
                     // Set Session
                     req.session.user = { name: user.username, role: user.role };
-                    res.json(user);
+                    // BUG-FIX: Never return password hash to client
+                    const { password: _pw, ...safeUser } = user;
+                    res.json(safeUser);
                 } else {
                     res.json({ message: "Invalid login" });
                 }
@@ -90,33 +93,93 @@ app.get("/logout", (req, res) => {
     res.json({ok: true});
 });
 
-/* ADD CUSTOMER */
-app.post("/addCustomer", (req, res) => {
-    const { name, email, phone, address } = req.body;
+/* ADD CUSTOMER — also creates portal login user */
+app.post("/addCustomer", roleGuard('admin', 'teller'), (req, res) => {
+    const { name, email, phone, address, username, password } = req.body;
+    const bcrypt = require('bcrypt');
 
-    // BUG-01 FIX: Use created_at column so today's additions works
-    trackedQuery(req,
-        "INSERT INTO customer (name,email,phone,address,created_at) VALUES (?,?,?,?,NOW())",
-        [name, email, phone, address],
-        (err, result) => {
-            if (err) {
-                console.log(err);
-                return res.status(500).json({ error: "Failed to add customer" });
-            }
-            // BUG-05 FIX: Write to audit_log so audit page shows data
-            const performer = req.session && req.session.user ? req.session.user.name : 'system';
-            db.query(
-                "INSERT INTO audit_log (table_name, action, old_value, new_value, performed_by) VALUES (?,?,?,?,?)",
-                ['customer', 'INSERT', '', `Name: ${name}, Email: ${email}`, performer],
-                () => {}
-            );
-            res.status(200).json({ message: "Customer Added" });
+    // Validate required fields
+    if (!name || !name.trim()) {
+        return res.status(400).json({ error: "Customer name is required." });
+    }
+    if (!username || !username.trim()) {
+        return res.status(400).json({ error: "Username is required to create a portal login." });
+    }
+    if (!password || password.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters." });
+    }
+
+    // Check if username is already taken
+    db.query("SELECT user_id FROM users WHERE username = ?", [username.trim()], (err, existing) => {
+        if (err) return res.status(500).json({ error: "Database error during username check." });
+        if (existing && existing.length > 0) {
+            return res.status(400).json({ error: `Username "${username}" is already taken. Please choose another.` });
         }
-    );
+
+        // Hash password
+        const hashedPassword = bcrypt.hashSync(password, 10);
+        const performer = req.session && req.session.user ? req.session.user.name : 'system';
+
+        // Use a transaction: insert customer THEN insert user linked by customer_id
+        db.beginTransaction((txErr, conn) => {
+            if (txErr) return res.status(500).json({ error: "Failed to start transaction." });
+
+            // Step 1: Insert customer
+            conn.query(
+                "INSERT INTO customer (name, email, phone, address, created_at) VALUES (?, ?, ?, ?, NOW())",
+                [name.trim(), email, phone, address],
+                (custErr, custResult) => {
+                    if (custErr) {
+                        return db.rollback(conn, () =>
+                            res.status(500).json({ error: "Failed to register customer." })
+                        );
+                    }
+
+                    const newCustomerId = custResult.insertId;
+
+                    // Step 2: Insert portal user linked to this customer
+                    conn.query(
+                        "INSERT INTO users (username, password, role, email, customer_id, is_active) VALUES (?, ?, 'customer', ?, ?, 1)",
+                        [username.trim(), hashedPassword, email, newCustomerId],
+                        (userErr) => {
+                            if (userErr) {
+                                return db.rollback(conn, () =>
+                                    res.status(500).json({ error: "Customer added but failed to create login account." })
+                                );
+                            }
+
+                            // Commit both inserts
+                            db.commit(conn, (commitErr) => {
+                                if (commitErr) {
+                                    return db.rollback(conn, () =>
+                                        res.status(500).json({ error: "Transaction commit failed." })
+                                    );
+                                }
+
+                                // Log to audit_log
+                                db.query(
+                                    "INSERT INTO audit_log (table_name, action, old_value, new_value, performed_by) VALUES (?,?,?,?,?)",
+                                    ['customer', 'INSERT', '', `Name: ${name}, Username: ${username}, Email: ${email}`, performer],
+                                    () => {}
+                                );
+
+                                res.status(200).json({
+                                    message: "Customer registered successfully with portal login.",
+                                    customer_id: newCustomerId,
+                                    username: username.trim()
+                                });
+                            });
+                        }
+                    );
+                }
+            );
+        });
+    });
 });
 
-/* GET ALL CUSTOMERS (for customer lists) */
-app.get("/customers", (req, res) => {
+
+/* GET ALL CUSTOMERS (for customer lists) - admin/teller only */
+app.get("/customers", roleGuard('admin', 'teller'), (req, res) => {
     trackedQuery(req, "SELECT * FROM customer ORDER BY customer_id DESC", [], (err, result) => {
         if (err) return res.status(500).json({ error: "Failed to fetch customers" });
         res.json(result);
@@ -124,15 +187,30 @@ app.get("/customers", (req, res) => {
 });
 
 /* CREATE ACCOUNT */
-app.post("/createAccount", (req, res) => {
+app.post("/createAccount", roleGuard('admin', 'teller'), (req, res) => {
     const { customer_id, account_type, balance } = req.body;
+
+    // BUG-FIX: Validate required fields
+    if (!customer_id) {
+        return res.status(400).json({ error: "Customer ID is required." });
+    }
+    if (!account_type || !['Saving', 'Current'].includes(account_type)) {
+        return res.status(400).json({ error: "Please select a valid account type (Saving or Current)." });
+    }
+    const parsedBalance = parseFloat(balance);
+    if (isNaN(parsedBalance) || parsedBalance < 0) {
+        return res.status(400).json({ error: "Initial balance must be a non-negative number." });
+    }
 
     trackedQuery(req,
         "INSERT INTO account (customer_id,account_type,balance) VALUES (?,?,?)",
-        [customer_id, account_type, balance],
+        [customer_id, account_type, parsedBalance],
         (err) => {
             if (err) {
                 console.log(err);
+                if (err.code === 'ER_NO_REFERENCED_ROW_2') {
+                    return res.status(400).json({ error: "Customer ID does not exist." });
+                }
                 return res.status(500).json({ error: "Failed to create account" });
             }
             res.status(200).json({ message: "Account Created" });
@@ -141,8 +219,17 @@ app.post("/createAccount", (req, res) => {
 });
 
 /* TRANSACTION - ATOMIC */
-app.post("/transaction", (req, res) => {
+app.post("/transaction", roleGuard('admin', 'teller', 'customer'), (req, res) => {
     const { account_id, amount, type } = req.body;
+
+    // BUG-FIX: Validate amount — must be a positive number
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        return res.status(400).json({ error: "Amount must be a positive number ❌" });
+    }
+    if (!['deposit', 'withdraw'].includes(type)) {
+        return res.status(400).json({ error: "Invalid transaction type. Use 'deposit' or 'withdraw' ❌" });
+    }
 
     db.beginTransaction((err, conn) => {
         if (err) return res.status(500).json({ error: "Transaction initiation failed" });
@@ -156,12 +243,24 @@ app.post("/transaction", (req, res) => {
                 return db.rollback(conn, () => res.status(400).json({ error: "Invalid Account ID ❌" }));
             }
 
+            const account = result[0];
+
+            // BUG-FIX: Overdraft protection — prevent balance going negative
+            if (type === 'withdraw') {
+                const currentBalance = parseFloat(account.balance);
+                if (parsedAmount > currentBalance) {
+                    return db.rollback(conn, () => res.status(400).json({
+                        error: `Insufficient funds ❌ Available balance: ₹${currentBalance.toLocaleString('en-IN')}`
+                    }));
+                }
+            }
+
             // Step 2: Update balance
             let balanceQuery = type === "withdraw"
                 ? "UPDATE account SET balance = balance - ? WHERE account_id=?"
                 : "UPDATE account SET balance = balance + ? WHERE account_id=?";
 
-            conn.query(balanceQuery, [amount, account_id], (err) => {
+            conn.query(balanceQuery, [parsedAmount, account_id], (err) => {
                 if (err) {
                     return db.rollback(conn, () => res.status(500).json({ error: "Balance update failed" }));
                 }
@@ -169,7 +268,7 @@ app.post("/transaction", (req, res) => {
                 // Step 3: Insert transaction record
                 conn.query(
                     "INSERT INTO transactions (account_id,amount,type) VALUES (?,?,?)",
-                    [account_id, amount, type],
+                    [account_id, parsedAmount, type],
                     (err) => {
                         if (err) {
                             return db.rollback(conn, () => res.status(500).json({ error: "Transaction logging failed" }));
@@ -189,8 +288,8 @@ app.post("/transaction", (req, res) => {
     });
 });
 
-/* DASHBOARD STATS */
-app.get("/dashboard-stats", (req, res) => {
+/* DASHBOARD STATS - auth guarded */
+app.get("/dashboard-stats", roleGuard('admin', 'teller', 'customer'), (req, res) => {
     trackedQuery(req, "SELECT COUNT(*) AS totalCustomers FROM customer", (err, custResult) => {
         if (err) return res.status(500).json({ error: "Failed to fetch stats" });
         trackedQuery(req, "SELECT COUNT(*) AS activeAccounts FROM account", (err, accResult) => {
@@ -217,7 +316,7 @@ app.get("/api/all-accounts", roleGuard('admin', 'teller'), (req, res) => {
 });
 
 /* GET MY ACCOUNTS */
-app.get("/my-accounts/:customerId", (req, res) => {
+app.get("/my-accounts/:customerId", roleGuard('admin', 'teller', 'customer'), (req, res) => {
     trackedQuery(req, "SELECT * FROM account WHERE customer_id=?", [req.params.customerId], (err, result) => {
         if (err) return res.status(500).json({ error: "Failed to fetch accounts" });
         res.json(result);
@@ -225,7 +324,7 @@ app.get("/my-accounts/:customerId", (req, res) => {
 });
 
 /* GET TRANSACTIONS HISTORY */
-app.get("/history/:accountId", (req, res) => {
+app.get("/history/:accountId", roleGuard('admin', 'teller', 'customer'), (req, res) => {
     trackedQuery(req, "SELECT * FROM transactions WHERE account_id=? ORDER BY date DESC", [req.params.accountId], (err, result) => {
         if (err) return res.status(500).json({ error: "Failed to fetch history" });
         res.json(result);
@@ -277,9 +376,13 @@ app.post("/run-query", (req, res) => {
     
     if (!query) return res.status(400).json({ error: "No query provided" });
     
-    // Strict Sanitization: Allow ONLY SELECT queries for security
-    if (!query.trim().toUpperCase().startsWith("SELECT")) {
-        return res.status(403).json({ error: "SECURITY ALERT: Only SELECT statements are permitted." });
+    // Strict Sanitization: Allow read-only queries (SELECT, EXPLAIN, SHOW)
+    const q = query.trim().toUpperCase();
+    const whitelist = ["SELECT", "EXPLAIN", "SHOW"];
+    const isAllowed = whitelist.some(cmd => q.startsWith(cmd));
+
+    if (!isAllowed) {
+        return res.status(403).json({ error: "SECURITY ALERT: Only SELECT, EXPLAIN, and SHOW statements are permitted." });
     }
 
     trackedQuery(req, query, (err, result) => {
@@ -408,19 +511,8 @@ app.post("/run-job-now", (req, res) => {
 });
 
 
-// BUG-11 FIX: Run-query endpoint for queries.html live execution
-// Whitelist: only SELECT queries allowed (no DDL/DML)
-app.post("/run-query", (req, res) => {
-    const { query } = req.body;
-    if (!query || typeof query !== 'string') return res.status(400).json({ error: 'Query required' });
-    const q = query.trim().toUpperCase();
-    if (!q.startsWith('SELECT')) return res.status(403).json({ error: 'Only SELECT queries allowed' });
-    
-    trackedQuery(req, query, [], (err, result) => {
-        if (err) return res.status(400).json({ error: err.message });
-        res.json(Array.isArray(result) ? result : []);
-    });
-});
+// NOTE: Consolidated with /run-query at line 275.
+
 
 // -------------------------------------------------------------
 // PHASE 3: SECURITY & CRYPTOGRAPHY MOCK ENDPOINTS
@@ -468,8 +560,106 @@ app.post("/grant", roleGuard('admin'), (req, res) => {
     res.json({ status: "success", message: "DCL Privileges Applied via Session" });
 });
 
-app.post("/backup", roleGuard('admin'), (req, res) => {
-    res.json({ok:true});
+const fs = require("fs");
+const path = require("path");
+const { exec } = require("child_process");
+
+const BACKUP_DIR = path.join(__dirname, 'backups');
+if (!fs.existsSync(BACKUP_DIR)) {
+    fs.mkdirSync(BACKUP_DIR);
+}
+
+// Use Aiven cloud credentials from .env (works both locally and on Render)
+const DB_USER = process.env.DB_USER || 'avnadmin';
+const DB_PASS = process.env.DB_PASSWORD || '';
+const DB_NAME = process.env.DB_NAME || 'defaultdb';
+const DB_HOST = process.env.DB_HOST || 'localhost';
+const DB_PORT = process.env.DB_PORT || '3306';
+
+function getMysqlToolPath(toolName) {
+    const commonPaths = [
+        `C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\${toolName}.exe`,
+        `C:\\xampp\\mysql\\bin\\${toolName}.exe`,
+        `C:\\Program Files\\MySQL\\MySQL Server 8.4\\bin\\${toolName}.exe`,
+        `C:\\Program Files\\MySQL\\MySQL Server 8.3\\bin\\${toolName}.exe`,
+        `C:\\Program Files\\MySQL\\MySQL Server 5.7\\bin\\${toolName}.exe`
+    ];
+    for (const p of commonPaths) {
+        if (fs.existsSync(p)) {
+            console.log(`[INFO] Found ${toolName} at: ${p}`);
+            return `"${p}"`;
+        }
+    }
+    console.warn(`[WARN] ${toolName} not found in common paths, falling back to global command.`);
+    return toolName;
+}
+
+const MYSQLDUMP_CMD = getMysqlToolPath('mysqldump');
+const MYSQL_CMD = getMysqlToolPath('mysql');
+
+app.get("/api/backup/list", roleGuard('admin'), (req, res) => {
+    fs.readdir(BACKUP_DIR, (err, files) => {
+        if (err) return res.status(500).json({ error: "Failed to read backups directory" });
+        const backups = files.filter(f => f.endsWith('.sql')).map(f => {
+            const stats = fs.statSync(path.join(BACKUP_DIR, f));
+            return {
+                filename: f,
+                size: (stats.size / 1024).toFixed(2) + ' KB',
+                date: stats.mtime
+            };
+        });
+        // Sort newest first
+        backups.sort((a,b) => new Date(b.date) - new Date(a.date));
+        res.json(backups);
+    });
+});
+
+app.post("/api/backup/create", roleGuard('admin'), (req, res) => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `backup_${timestamp}.sql`;
+    const filepath = path.join(BACKUP_DIR, filename);
+    
+    const dumpCmd = `${MYSQLDUMP_CMD} -u ${DB_USER} -p"${DB_PASS}" ${DB_NAME} > "${filepath}"`;
+    exec(dumpCmd, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Backup Error: ${error}`);
+            return res.status(500).json({ error: "Backup Failed: " + error.message });
+        }
+        res.json({ message: "Backup created successfully", filename });
+    });
+});
+
+app.post("/api/backup/restore", roleGuard('admin'), (req, res) => {
+    // SHADOW RECOVERY LOGIC:
+    // Recover bank_db from the real-time bank_db_shadow standby database.
+    
+    console.log("[RESTORE] Initiating recovery from Shadow Standby...");
+    
+    // Use a temporary file for the transfer as piping can be flaky on some Windows environments
+    const tempFile = path.join(__dirname, 'temp_recovery.sql');
+    const restoreCmd = `${MYSQL_CMD} -u ${DB_USER} -p"${DB_PASS}" -e "DROP DATABASE IF EXISTS ${DB_NAME}; CREATE DATABASE ${DB_NAME};" && ` +
+                       `${MYSQLDUMP_CMD} -u ${DB_USER} -p"${DB_PASS}" bank_db_shadow > "${tempFile}" && ` +
+                       `${MYSQL_CMD} -u ${DB_USER} -p"${DB_PASS}" ${DB_NAME} < "${tempFile}"`;
+    
+    exec(restoreCmd, (error, stdout, stderr) => {
+        // Cleanup temp file
+        if (fs.existsSync(tempFile)) {
+            try { fs.unlinkSync(tempFile); } catch(e) {}
+        }
+
+        if (error) {
+            console.error(`[RESTORE ERROR]: ${error}`);
+            return res.status(500).json({ error: "Automatic Recovery Failed: " + error.message });
+        }
+        console.log("[RESTORE] Database successfully recovered from Shadow Standby.");
+        res.json({ message: "Success! Database has been automatically recovered from the Real-time Shadow Standby." });
+    });
+});
+
+app.get("/api/backup/download/:filename", roleGuard('admin'), (req, res) => {
+    const filepath = path.join(BACKUP_DIR, req.params.filename);
+    if (fs.existsSync(filepath)) res.download(filepath);
+    else res.status(404).send("File not found");
 });
 
 app.delete("/drop-index", roleGuard('admin', 'manager'), (req, res) => {
@@ -501,7 +691,12 @@ app.post("/api/users", roleGuard('admin'), (req, res) => {
     [username, hash, role, position, email, customerId || null], (err, result) => {
         if (err) {
             console.error(err);
-            return res.status(500).json({error: "Create failed. Duplicate Customer ID?"});
+            if (err.code === 'ER_NO_REFERENCED_ROW_2') {
+                return res.status(400).json({error: "Create failed. Customer ID does not exist in the system."});
+            } else if (err.code === 'ER_DUP_ENTRY') {
+                return res.status(400).json({error: "Create failed. Customer ID is already linked to another user."});
+            }
+            return res.status(500).json({error: "Create failed. " + err.message});
         }
         res.json({ message: "User created", id: result.insertId });
     });
@@ -580,6 +775,7 @@ app.get("/api/customers", roleGuard('admin', 'teller'), (req, res) => {
     });
 });
 
-app.listen(3000, () => {
-    console.log("Server running on port 3000");
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });

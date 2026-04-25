@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NexBank — Query Analyzer</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <script>
     if (localStorage.getItem('userRole') !== 'admin') {
       window.location.href = 'index.html';
@@ -53,9 +54,28 @@
       z-index: 0;
     }
 
-    .sidebar { width: 260px; min-height: 100vh; background: var(--navy-3); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 36px 24px; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; gap: 40px; }
+    .sidebar {
+      width: 260px;
+      min-height: 100vh;
+      background: var(--navy-3);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 36px 24px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      z-index: 10;
+      gap: 40px;
+    }
 
-    .logo-mark { display: flex; align-items: center; gap: 12px; margin-right: 0px; }
+    .logo-mark {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-right: 0px;
+    }
 
     .logo-icon {
       width: 38px;
@@ -78,9 +98,23 @@
       letter-spacing: 0.08em;
     }
 
-    .nav-section { display: flex; flex-direction: column; gap: 4px; align-items: stretch; flex: unset; margin: 0; }
+    .nav-section {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: stretch;
+      flex: unset;
+      margin: 0;
+    }
 
-    .nav-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 10px 0 5px 10px; }
+    .nav-label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin: 10px 0 5px 10px;
+    }
 
     .nav-item {
       display: flex;
@@ -103,7 +137,9 @@
     }
 
     .main {
-      margin-left: 260px; margin-right: auto; margin-top: 0;
+      margin-left: 260px;
+      margin-right: auto;
+      margin-top: 0;
       flex: 1;
       padding: 50px 60px;
       position: relative;
@@ -235,51 +271,122 @@
 
     /* Result Table wrapper for Dynamic Queries */
     .result-wrapper {
-      max-height: 200px;
+      max-height: 400px;
       overflow: auto;
       margin-top: 15px;
-      background: rgba(0, 0, 0, 0.2);
-      border: 1px solid rgba(201, 168, 76, 0.1);
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border);
       border-radius: 4px;
       display: none;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
     }
 
     .result-wrapper table th {
       background: var(--navy-3);
       position: sticky;
       top: 0;
+      z-index: 2;
+      border-bottom: 2px solid var(--gold);
     }
-  
-  /* Hide scrollbars globally */
-  html, body { overflow: hidden; }
-  * { -ms-overflow-style: none; scrollbar-width: none; }
-  *::-webkit-scrollbar { display: none; }
-  .main { overflow-y: auto; height: 100vh; }
-  .sidebar { overflow-y: auto; }
 
-</style>
+    .result-wrapper table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .result-wrapper tr:hover {
+      background: rgba(201, 168, 76, 0.05);
+    }
+
+    .result-wrapper td {
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .result-wrapper td:hover {
+      white-space: normal;
+      overflow: visible;
+      word-break: break-all;
+      background: var(--navy-3);
+      position: relative;
+      z-index: 5;
+    }
+
+    #queryError {
+      color: var(--danger);
+      font-size: 12px;
+      margin-top: 10px;
+      padding: 10px;
+      background: rgba(224, 85, 85, 0.05);
+      border: 1px solid rgba(224, 85, 85, 0.2);
+      border-radius: 4px;
+      display: none;
+    }
+
+    /* Hide scrollbars globally */
+    html,
+    body {
+      overflow: hidden;
+    }
+
+    * {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    *::-webkit-scrollbar {
+      display: none;
+    }
+
+    .main {
+      overflow-y: auto;
+      height: 100vh;
+    }
+
+    .sidebar {
+      overflow-y: auto;
+    }
+  </style>
 </head>
 
 <body>
 
+  <!-- Sidebar -->
   <aside class="sidebar">
     <div class="logo-mark">
-      <div class="logo-icon">N</div><span class="logo-name">NexBank</span>
+      <div class="logo-icon">N</div>
+      <span class="logo-name">NexBank</span>
     </div>
     <nav class="nav-section">
-    <div class="nav-label">Admin Portal</div>
-    <a href="admin.html" class="nav-item">👤 Dashboard / Admin</a>
-    <a href="audit.html" class="nav-item">📜 Audit Log</a>
-    <a href="query-analyzer.html" class="nav-item active">⚡ Query Analyzer</a>
+      <div class="nav-label">Admin Portal</div>
+      <a href="admin.html" class="nav-item"><span class="nav-icon">👤</span> Dashboard / Admin</a>
+      <a href="teller.html" class="nav-item"><span class="nav-icon">🏦</span> Open Account</a>
+      <a href="customer.html" class="nav-item"><span class="nav-icon">💳</span> Transactions</a>
+      <a href="audit.html" class="nav-item"><span class="nav-icon">📜</span> Audit Log</a>
+      <a href="query-analyzer.html" class="nav-item active"><span class="nav-icon">⚡</span> Query Analyzer</a>
+      <a href="user-management.html" class="nav-item"><span class="nav-icon">👥</span> User Management</a>
+      
+      <div class="nav-label">Security & Auth</div>
+      <a href="privileges.html" class="nav-item"><span class="nav-icon">🛡️</span> Privilege Matrix</a>
+      <a href="backup.html" class="nav-item"><span class="nav-icon">💾</span> Backup & Restore</a>
 
-    <div class="nav-label" >Documentation</div>
-    <a href="queries.html" class="nav-item">🔍 SQL Queries</a>
-    <a href="er-diagram.html" class="nav-item">📈 ER Diagram</a>
-    <a href="cloud.html" class="nav-item">☁️ Cloud Architecture</a>
-    <a href="about.html" class="nav-item">📄 About / Conclusion</a>
+      <div class="nav-label">Documentation</div>
+      <a href="queries.html" class="nav-item"><span class="nav-icon">🔍</span> SQL Queries</a>
+      <a href="about.html" class="nav-item"><span class="nav-icon">📄</span> About / Conclusion</a>
 
-    <a href="#" onclick="localStorage.removeItem('userRole'); window.location.href='index.html';" class="nav-item" >↩ Sign Out</a>
-  </nav>
+      <a href="#" onclick="fetch('/logout').then(()=>{localStorage.removeItem('userRole'); window.location.href='index.html';})" class="nav-item">
+        <span class="nav-icon">↩</span> Sign Out
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="role-badge">Administrator</div>
+      <div>Full system access</div>
+    </div>
   </aside>
 
   <main class="main">
@@ -300,11 +407,13 @@
       <!-- Manual Query Runner -->
       <div class="card">
         <div class="card-title">Raw Query Executor</div>
-        <p style="font-size:12px; color:var(--muted); margin-bottom:10px;">Warning: Only SELECT queries are permitted by
-          engine policy.</p>
+        <p style="font-size:12px; color:var(--muted); margin-bottom:10px;">
+          <span style="color:var(--gold); font-weight:600;">Security Policy:</span> 
+          Only read-only statements (<span style="color:var(--gold-light);">SELECT, EXPLAIN, SHOW</span>) are permitted.
+        </p>
         <textarea id="manualQuery" placeholder="SELECT * FROM account LIMIT 5;"></textarea>
-        <button onclick="runManualQuery()">Execute</button>
-        <div id="queryError" ></div>
+        <button onclick="runManualQuery()" style="text-transform: uppercase; font-weight: 600; letter-spacing: 1px;">Execute</button>
+        <div id="queryError"></div>
         <div class="result-wrapper" id="resultWrapper">
           <table id="resultTable">
             <thead id="resultHead"></thead>
@@ -441,14 +550,16 @@
 
     function runManualQuery() {
       const qStr = document.getElementById('manualQuery').value;
-      const btn = document.querySelector('button');
+      const btn = document.querySelector('.card button');
       const wrapper = document.getElementById('resultWrapper');
       const thead = document.getElementById('resultHead');
       const tbody = document.getElementById('resultBody');
       const errDiv = document.getElementById('queryError');
 
       errDiv.innerHTML = '';
+      errDiv.style.display = 'none';
       btn.innerText = 'Running...';
+      btn.disabled = true;
 
       fetch('/run-query', {
         method: 'POST',
@@ -462,11 +573,13 @@
         })
         .then(data => {
           btn.innerText = 'Execute';
-          thead.innerHTML = ''; tbody.innerHTML = '';
+          btn.disabled = false;
+          thead.innerHTML = '';
+          tbody.innerHTML = '';
           wrapper.style.display = 'block';
 
-          if (data.length === 0) {
-            tbody.innerHTML = '<tr><td>0 rows returned</td></tr>';
+          if (!Array.isArray(data) || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="100%" style="text-align:center; padding:30px; color:var(--muted); font-style:italic;">No results returned.</td></tr>';
             return;
           }
 
@@ -480,7 +593,18 @@
           // Build data rows
           data.forEach(row => {
             let tr = '<tr>';
-            columns.forEach(col => tr += `<td>${row[col]}</td>`);
+            columns.forEach(col => {
+              let val = row[col];
+              const isPassword = col.toLowerCase().includes('password');
+              
+              if (val === null) {
+                tr += `<td><span style="color:var(--muted); font-style:italic; font-size:11px;">NULL</span></td>`;
+              } else if (isPassword) {
+                tr += `<td title="${val}">•••••••• <span style="font-size:10px; color:var(--muted)">(Masked)</span></td>`;
+              } else {
+                tr += `<td title="${val}">${val}</td>`;
+              }
+            });
             tr += '</tr>';
             tbody.innerHTML += tr;
           });
@@ -489,8 +613,10 @@
         })
         .catch(err => {
           btn.innerText = 'Execute';
+          btn.disabled = false;
           wrapper.style.display = 'none';
-          errDiv.innerHTML = err.message;
+          errDiv.innerHTML = '⚠️ ' + err.message;
+          errDiv.style.display = 'block';
         });
     }
 
